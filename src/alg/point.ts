@@ -1,5 +1,5 @@
 import type { Cv, Mat } from '../core/types';
-import { applyLut, bool, domainOf, grayOf, num, str, type Runner } from './common';
+import { applyLutT, bool, domainOf, grayOf, num, str, type Runner } from './common';
 
 /** Percentile bounds from the gray histogram: smallest v whose CDF reaches p% of pixels. Pure. */
 export function percentileBounds(data: ArrayLike<number>, pLow: number, pHigh: number): { lo: number; hi: number } {
@@ -32,14 +32,18 @@ function stretchBounds(cv: Cv, input: Mat, pLow: number, pHigh: number) {
 }
 
 export const point: Record<string, Runner> = {
-  P01: ({ cv, input }) => ({ mat: applyLut(cv, input, (r) => 255 - r), vars: { domain: domainOf(input) } }),
+  P01: ({ cv, input }) => {
+    const { mat, table } = applyLutT(cv, input, (r) => 255 - r);
+    return { mat, curve: table, vars: { domain: domainOf(input) } };
+  },
 
   P02: ({ cv, input, params }) => {
     const b = num(params, 'b');
     const clip = bool(params, 'clip');
-    const mat = applyLut(cv, input, clip ? (r) => r + b : (r) => (((r + b) % 256) + 256) % 256);
+    const { mat, table } = applyLutT(cv, input, clip ? (r) => r + b : (r) => (((r + b) % 256) + 256) % 256);
     return {
       mat,
+      curve: table,
       vars: {
         b: b >= 0 ? `+${b}` : `${b}`,
         rule: clip ? 'clip(r + b, 0, 255) (saturating)' : '(r + b) mod 256 (wraps around)',
@@ -53,21 +57,21 @@ export const point: Record<string, Runner> = {
     const pLow = num(params, 'pLow');
     const pHigh = num(params, 'pHigh');
     const { lo, hi } = stretchBounds(cv, input, pLow, pHigh);
-    const mat = applyLut(cv, input, (r) => ((r - lo) / (hi - lo)) * 255);
-    return { mat, vars: { pLow, pHigh, lo, hi, domain: domainOf(input) } };
+    const { mat, table } = applyLutT(cv, input, (r) => ((r - lo) / (hi - lo)) * 255);
+    return { mat, curve: table, vars: { pLow, pHigh, lo, hi, domain: domainOf(input) } };
   },
 
   P04: ({ cv, input, params }) => {
     const a = num(params, 'alpha');
     const c = 255 / Math.log(1 + a * 255);
-    const mat = applyLut(cv, input, (r) => c * Math.log(1 + a * r));
-    return { mat, vars: { alpha: a, c: c.toFixed(3), domain: domainOf(input) } };
+    const { mat, table } = applyLutT(cv, input, (r) => c * Math.log(1 + a * r));
+    return { mat, curve: table, vars: { alpha: a, c: c.toFixed(3), domain: domainOf(input) } };
   },
 
   P05: ({ cv, input, params }) => {
     const g = num(params, 'gamma');
-    const mat = applyLut(cv, input, (r) => Math.pow(r / 255, g) * 255);
-    return { mat, vars: { gamma: g, domain: domainOf(input) } };
+    const { mat, table } = applyLutT(cv, input, (r) => Math.pow(r / 255, g) * 255);
+    return { mat, curve: table, vars: { gamma: g, domain: domainOf(input) } };
   },
 
   P06: ({ cv, input, params }) => {

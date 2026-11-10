@@ -1,5 +1,8 @@
 import { APP_VERSION, type Params, type TechniqueSpec } from './types';
 
+/** Config files from v1 (major 1) still import; unknown majors are rejected. */
+const ACCEPTED_MAJORS = ['1', '2'];
+
 /** FR-16: shareable technique config. Parameters only; never any image bytes. */
 export interface ShareConfig {
   app: 'dip-lab';
@@ -41,7 +44,7 @@ export function importConfig(text: string, registry: readonly TechniqueSpec[], k
   if (!raw || typeof raw !== 'object') return { ok: false, reason: 'Config must be a JSON object.' };
   const o = raw as Record<string, unknown>;
   if (o.app !== 'dip-lab') return { ok: false, reason: 'Not a DIP Lab config (missing app: "dip-lab").' };
-  if (typeof o.version !== 'string' || o.version.split('.')[0] !== APP_VERSION.split('.')[0])
+  if (typeof o.version !== 'string' || !ACCEPTED_MAJORS.includes(o.version.split('.')[0]))
     return { ok: false, reason: `Config version ${String(o.version)} is not compatible with app ${APP_VERSION}.` };
   const spec = registry.find((t) => t.id === o.technique);
   if (!spec) return { ok: false, reason: `Unknown technique "${String(o.technique)}".` };

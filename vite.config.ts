@@ -11,7 +11,7 @@ const csp = (): Plugin => ({
   transformIndexHtml: (html) =>
     html.replace(
       '<meta name="color-scheme"',
-      `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'" />\n    <meta name="color-scheme"`,
+      `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' data:; worker-src 'self' blob:; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'" />\n    <meta name="color-scheme"`,
     ),
 });
 
@@ -19,6 +19,7 @@ export default defineConfig({
   base: './',
   plugins: [csp()],
   build: { target: 'es2022', sourcemap: false },
+  worker: { format: 'iife' },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],

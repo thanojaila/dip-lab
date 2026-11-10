@@ -2,7 +2,7 @@
 export type Cv = typeof import('@techstark/opencv-js');
 export type Mat = import('@techstark/opencv-js').Mat;
 
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '2.0.0';
 
 export type ParamValue = number | string | boolean;
 export type Params = Record<string, ParamValue>;
@@ -17,6 +17,8 @@ export interface ParamSpec {
   step?: number;
   /** For selects: value/label pairs. */
   options?: { value: string; label: string }[];
+  /** Set from the stage (drawn rectangle, dragged corners, spectrum circle) rather than a visible control. */
+  hidden?: boolean;
   /** One-line help shown under the control. */
   help?: string;
 }
@@ -32,6 +34,22 @@ export interface ImageMeta {
   limit: number;
 }
 
+export type Need = 'any' | 'gray' | 'binary' | 'color';
+
+export type OverlayShape =
+  | { kind: 'point'; x: number; y: number }
+  | { kind: 'line'; x1: number; y1: number; x2: number; y2: number }
+  | { kind: 'circle'; x: number; y: number; r: number }
+  | { kind: 'rect'; x: number; y: number; w: number; h: number; label?: string }
+  | { kind: 'poly'; points: [number, number][] };
+
+/** Plain RGBA pixels (structured-clone friendly, so results can cross a Worker boundary). */
+export interface PlainPixels {
+  w: number;
+  h: number;
+  data: Uint8ClampedArray;
+}
+
 export interface RunContext {
   cv: Cv;
   /** Original RGBA working image. Read-only; caller owns it. */
@@ -41,6 +59,14 @@ export interface RunContext {
   grayMode: boolean;
   params: Params;
   meta: ImageMeta;
+  /** Id of the bundled image being worked on, if any. */
+  imageId?: string;
+  /** Clean bundled image prepared like `input` (for PSNR). Present only when sizes match. */
+  reference?: Mat;
+  /** Reference image for histogram matching (RGBA). */
+  refPixels?: PlainPixels;
+  /** Technique ids already applied in the pipeline (e.g. ['N02']). */
+  pipeline?: string[];
 }
 
 export interface RunResult {
@@ -49,6 +75,20 @@ export interface RunResult {
   /** Values for template placeholders beyond the params themselves. */
   vars: Record<string, string | number>;
   warnings?: string[];
+  /** Shapes drawn over the original (points, lines, circles, boxes, contours). */
+  overlay?: OverlayShape[];
+  /** Numbers shown in the scope table and checked by challenges. */
+  metrics?: Record<string, number>;
+  /** Named intermediate images for the step strip / comparisons. */
+  intermediates?: { label: string; pixels: PlainPixels }[];
+  /** 256-entry transfer table s = T(r) for point operations. */
+  curve?: number[];
+  /** Log-magnitude spectrum picture, with the cutoff radius (in spectrum pixels) if any. */
+  spectrum?: { pixels: PlainPixels; cutoff?: number; kind?: string };
+  /** Score / accumulator map for the heat-map scope. */
+  heatmap?: { w: number; h: number; data: Float32Array; label: string; marks?: [number, number][] };
+  /** A short sentence for screen readers describing overlay/metrics ("12 circles found"). */
+  summary?: string;
 }
 
 export interface SelfCheckSpec {
@@ -56,7 +96,8 @@ export interface SelfCheckSpec {
   options: string[];
   correct: number;
   /** Preset applied when the learner runs the check. */
-  preset: { sample?: string; params: Params };
+  /** Defaults to the concept's hero demo when omitted. */
+  preset?: { sample?: string; params: Params };
   explanation: string;
 }
 
@@ -80,6 +121,42 @@ export interface TechniqueSpec {
   livePreview?: boolean;
   /** One-sentence plain description shown at the top of the card. */
   blurb: string;
+
+  // ---- v2 ----
+  /** How the technique adapts the learner's image (always with a visible note). */
+  needs?: Need;
+  /** The opening question the image answers. */
+  question: string;
+  /** Manifest id of the image the hero demo opens on. */
+  heroImage: string;
+  /** Hero-demo parameters. */
+  heroParams?: Params;
+  /** Steps run (and chained) before the hero demo, e.g. add noise first. */
+  heroPipeline?: { id: string; params: Params }[];
+  alsoGoodOn?: string[];
+  scope?: 'histogram' | 'curve' | 'spectrum' | 'table' | 'heatmap';
+  explainer?: 'kernel' | 'curve' | 'structuring' | 'steps' | 'spectrum' | 'overlay';
+  /** Extra numbers for the scope table. */
+  metrics?: (ctx: RunContext, r: RunResult) => Record<string, number>;
+  challenge?: {
+    prompt: string;
+    check: (m: Record<string, number>) => boolean;
+    /** Only evaluated on this bundled image (and, if set, after these pipeline steps). */
+    imageId?: string;
+    requires?: string[];
+    /** Text shown with the measured number, e.g. "PSNR (dB)". */
+    metric: string;
+  };
+  /** SIFT, HOG, active contours: description only, never a fake demo. */
+  explainerOnly?: boolean;
+  /** Needs a reference image (histogram matching). */
+  needsRef?: boolean;
+  /** Runs in the Worker when available (DFT, Hough, big bilateral). */
+  heavy?: boolean;
+  /** Show the template-rectangle picker on the stage. */
+  pickRect?: boolean;
+  /** Show four draggable corners on the stage. */
+  pickCorners?: boolean;
 }
 
 export interface SegmentSpec {
@@ -87,4 +164,8 @@ export interface SegmentSpec {
   index: number;
   title: string;
   tagline: string;
+  /** Accent colour token name for this world. */
+  accent: 'primary' | 'coral' | 'teal' | 'sun' | 'plum' | 'sky';
+  /** Optional honesty label, e.g. "covered lightly". */
+  note?: string;
 }

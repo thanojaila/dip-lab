@@ -138,4 +138,98 @@ export const EFFECT_NOTES: Record<string, string[]> = {
     'Counts depend on the binarisation: a bad threshold merges or splits particles.',
     '8-connectivity treats diagonal neighbours as touching; 4-connectivity would count more pieces.',
   ],
+  F05: [
+    'Raising the factor throws away more samples; features thinner than the factor can no longer be seen.',
+    'Nearest-neighbour keeps one pixel per block and ignores the rest, so fine regular detail turns into false stripes.',
+    'Area interpolation averages each block first, which behaves like a small low-pass filter before sampling.',
+    'The stage shows the shrunken image enlarged back with nearest-neighbour so the difference is visible at the same size.',
+  ],
+  C01: [
+    'Hue picks the colour, saturation how vivid it is, value how bright. Raising the saturation floor drops pale pixels.',
+    'Widening the hue half-width includes neighbouring colours (orange joins red).',
+    'Red needs two ranges because hue wraps at 180; the Exact panel shows which ranges were combined.',
+    'The view selector shows each plane alone: look at R, G and B, then H, S and V, to see what each one carries.',
+  ],
+  T01: [
+    'Raising the block size makes the local mean smoother, so thin strokes need a block wider than the stroke.',
+    'Raising C lowers the threshold, so fewer pixels count as bright (less white noise in paper regions).',
+    'Gaussian weighting follows the local brightness more closely than a plain mean.',
+    'The comparison thumbnail shows Otsu on the same image so you can see what one global T loses.',
+  ],
+  H04: [
+    'The result keeps the content of your image but follows the tone distribution of the reference.',
+    'Colour images are matched channel by channel against the reference’s channels.',
+    'A reference with a very different look (night vs a bright cup) produces a strong, sometimes unnatural, shift.',
+  ],
+  M04: [
+    'The element must be larger than the objects you want to keep; otherwise they are treated as background and removed.',
+    'White top-hat (image − opening) keeps small bright things; black-hat (closing − image) keeps small dark things.',
+    'After the top-hat the background is flat, so Otsu finds a sensible single threshold.',
+    'Raising the minimum area drops specks from the count.',
+  ],
+  Q01: [
+    'The centre is the average brightness; distance from the centre is spatial frequency; direction is the orientation of the pattern.',
+    'Sharp edges and regular patterns make bright streaks across the centre, perpendicular to the edges or lines.',
+    'Random texture spreads energy in a broad blob with no structure.',
+    'Blur removes high frequencies, so the bright region collapses toward the centre (more in the direction of motion).',
+  ],
+  Q02: [
+    'Lowering D0 keeps fewer frequencies, so the image is blurrier.',
+    'A Gaussian mask blurs smoothly; an ideal mask cuts hard (see the ringing concept).',
+    'It is equivalent to a spatial Gaussian blur, but defined by the cutoff in frequency instead of a kernel size.',
+  ],
+  Q03: [
+    'Raising D0 removes more low frequencies, leaving only finer detail.',
+    'The centre (average brightness) is removed, so the result is signed and mostly near zero.',
+    'The 128 offset display makes negative values visible; clip mode shows how the image goes dark.',
+    'High-pass also boosts noise, which lives at high frequencies.',
+  ],
+  Q04: [
+    'Lowering D0 makes the ideal filter ring more and the Gaussian blur more.',
+    'The ideal mask is a hard disc; its spatial counterpart is a sinc function with oscillating tails.',
+    'The table lists the value range before clipping: ringing shows up as values below 0 and above 255.',
+  ],
+  FT01: [
+    'Raising the score threshold keeps only very close matches; lowering it adds look-alikes.',
+    'Draw a different rectangle (or edit the numbers) to pick another template.',
+    'The heat map shows the score at every position; peaks are matches.',
+    'Rotated or scaled copies score low because the template compares pixels at one orientation and size.',
+  ],
+  FT02: [
+    'Raising the threshold keeps only the strongest corners.',
+    'k trades corners against edges: a larger k suppresses more edge responses.',
+    'A bigger window averages gradients over a larger neighbourhood, so corners are less precise but more stable.',
+  ],
+  FT03: [
+    'Contours need a clean binary image; gaps or noise split or add contours.',
+    'Raising the minimum area ignores small specks.',
+    'CHAIN_APPROX_SIMPLE stores only the corner points of straight runs, so the point count is far smaller than the boundary length.',
+  ],
+  FT04: [
+    'Raising the vote threshold keeps only lines supported by many edge pixels.',
+    'Min length and max gap decide whether broken pieces are joined or reported separately.',
+    'The accumulator shows every (angle, distance) pair; bright peaks are lines.',
+    'Looser Canny thresholds add more edge pixels, so more candidate lines.',
+  ],
+  FT05: [
+    'Lowering param2 accepts circles with fewer votes, finding more real circles and more false ones.',
+    'Min distance prevents several circles around the same centre.',
+    'The radius range must bracket the real radii; too wide invites false circles.',
+    'A median blur first removes small specks that would otherwise vote.',
+  ],
+  G01: [
+    'Angle rotates about the image centre; corners that leave the frame are cut off.',
+    'Passes split the same total rotation into several steps; each step interpolates and softens.',
+    'Scale zooms about the centre; values below 1 shrink the picture and expose black corners.',
+  ],
+  G02: [
+    'The shift moves the picture; the shear slants it (x depends on y).',
+    'The border rule fills the exposed area: black, a smear of the edge pixel, or a mirror.',
+    'Nothing outside the frame is recoverable once it has been cut off.',
+  ],
+  G03: [
+    'The four corner points define the mapping; drag them onto the corners of the page on the stage.',
+    'Perspective is a 3×3 homography, more general than the affine moves above (parallel lines need not stay parallel).',
+    'Output size sets the resolution of the straightened page.',
+  ],
 };

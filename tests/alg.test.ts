@@ -3,6 +3,7 @@ import { getCv } from './cvNode';
 import type { Cv, ImageMeta, RunContext } from '../src/core/types';
 import { TECHNIQUES, defaultParams } from '../src/registry';
 import { TEST_PATTERNS as SAMPLES, patternById as sampleById } from '../src/core/testPatterns';
+import { loadImage } from './images';
 import { matToPixels, pixelsToMat, prepareInput, withMats } from '../src/core/matIO';
 import { fillTemplate } from '../src/exact/templates';
 import { histogramCv, histogramJS } from '../src/alg/histogram';
@@ -15,7 +16,7 @@ beforeAll(async () => {
 });
 
 function ctxFor(sampleId: string, gray: boolean, params: Record<string, number | string | boolean>, track: <M extends { delete(): void }>(m: M) => M): RunContext {
-  const px = sampleById(sampleId)!.make();
+  const px = loadImage(sampleId);
   const rgba = track(pixelsToMat(cv, px));
   const input = track(prepareInput(cv, rgba, gray));
   const meta: ImageMeta = { source: `sample:${sampleId}`, origW: px.w, origH: px.h, w: px.w, h: px.h, resized: false, limit: 1024 };
@@ -31,12 +32,14 @@ describe('capability probe on real OpenCV.js', () => {
 });
 
 describe('every technique runs on its sample in gray and RGB', () => {
-  for (const t of TECHNIQUES) {
+  for (const t of TECHNIQUES.filter((x) => !x.explainerOnly)) {
     for (const gray of [true, false]) {
+      if (gray && t.needs === 'color') continue;
       it(`${t.id} ${t.title} (${gray ? 'gray' : 'RGB'})`, () => {
         withMats((track) => {
           const params = defaultParams(t);
           const ctx = ctxFor(t.sampleHint ?? 'shapes', gray, params, track);
+          if (t.needsRef) ctx.refPixels = loadImage('coffee');
           const res = t.run(ctx);
           track(res.mat);
           expect(res.mat.rows).toBeGreaterThan(0);
@@ -183,9 +186,10 @@ describe('Mat disposal', () => {
   it('repeated runs of every technique do not grow the WASM heap unboundedly', () => {
     const heap = () => (cv as unknown as { HEAPU8: { length: number } }).HEAPU8.length;
     const once = () => {
-      for (const t of TECHNIQUES) {
+      for (const t of TECHNIQUES.filter((x) => !x.explainerOnly && x.needs !== 'color')) {
         withMats((track) => {
           const ctx = ctxFor(t.sampleHint ?? 'shapes', true, defaultParams(t), track);
+          if (t.needsRef) ctx.refPixels = loadImage('coffee');
           track(t.run(ctx).mat);
         });
       }

@@ -1,4 +1,5 @@
 import { BORDER_NOTE, domainOf, num, odd, type Runner } from './common';
+import { matToPixels } from '../core/matIO';
 
 export const smoothing: Record<string, Runner> = {
   S01: ({ cv, input, params }) => {
@@ -36,7 +37,15 @@ export const smoothing: Record<string, Runner> = {
     const t0 = performance.now();
     cv.bilateralFilter(input, mat, d, sc, ss, cv.BORDER_REFLECT_101);
     const ms = Math.round(performance.now() - t0);
-    return { mat, vars: { d, sigmaColor: sc, sigmaSpace: ss, ms, domain: domainOf(input), border: BORDER_NOTE }, warnings };
+    const gauss = new cv.Mat();
+    let intermediates: { label: string; pixels: ReturnType<typeof matToPixels> }[] = [];
+    try {
+      cv.GaussianBlur(input, gauss, new cv.Size(9, 9), 3, 3, cv.BORDER_REFLECT_101);
+      intermediates = [{ label: 'Gaussian 9×9, σ 3 (for comparison)', pixels: matToPixels(cv, gauss) }];
+    } finally {
+      gauss.delete();
+    }
+    return { mat, vars: { d, sigmaColor: sc, sigmaSpace: ss, ms, domain: domainOf(input), border: BORDER_NOTE }, warnings, intermediates };
   },
 
   S05: ({ cv, input, params }) => {

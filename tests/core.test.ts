@@ -5,6 +5,7 @@ import { missingApis, probe } from '../src/core/capability';
 import { exportConfig, importConfig } from '../src/core/config';
 import { TECHNIQUES } from '../src/registry';
 import { TEST_PATTERNS as SAMPLES, TP_IDS } from '../src/core/testPatterns';
+import { IMAGES } from '../src/core/sampleRegistry';
 import { diffPixels, histogramFromPixels, resizeNearest } from '../src/core/imageOps';
 import { fillTemplate } from '../src/exact/templates';
 import { percentileBounds } from '../src/alg/point';
@@ -66,8 +67,8 @@ describe('upload policy', () => {
 
 describe('capability probe', () => {
   it('marks missing APIs unavailable', () => {
-    const caps = probe({ blur: () => 0 }, ['blur', 'bilateralFilter']);
-    expect(caps).toEqual({ blur: true, bilateralFilter: false });
+    const caps = probe({ blur: () => 0, GaussianBlur: () => 0 }, ['blur', 'bilateralFilter', 'GaussianBlur']);
+    expect(caps).toEqual({ blur: true, bilateralFilter: false, GaussianBlur: true });
     const spec = TECHNIQUES.find((t) => t.id === 'S04')!;
     expect(missingApis(spec, caps)).toEqual(['bilateralFilter']);
   });
@@ -128,9 +129,9 @@ describe('samples', () => {
 });
 
 describe('curriculum content (Definition of Done)', () => {
-  const mvpSegments = ['foundations', 'point', 'histogram', 'noise', 'sharpen', 'edges', 'morphology'];
+  const mvpSegments = ['pixels', 'point', 'hist', 'noise', 'sharpen', 'edges', 'morph', 'freq', 'features', 'geometry'];
   for (const seg of mvpSegments) {
-    const ts = TECHNIQUES.filter((t) => t.segment === seg && t.tier === 'mvp');
+    const ts = TECHNIQUES.filter((t) => t.segment === seg && !t.explainerOnly);
     it(`${seg}: has MVP techniques, ≥1 misconception and ≥1 self-check`, () => {
       expect(ts.length).toBeGreaterThan(0);
       expect(ts.some((t) => t.misconception)).toBe(true);
@@ -150,8 +151,8 @@ describe('curriculum content (Definition of Done)', () => {
       const sc = t.selfCheck;
       if (!sc) continue;
       expect(sc.correct).toBeLessThan(sc.options.length);
-      if (sc.preset.sample) expect(TP_IDS, t.id).toContain(sc.preset.sample);
-      for (const [k, v] of Object.entries(sc.preset.params)) {
+      if (sc.preset?.sample) expect([...IMAGES.map((i) => i.id), ...TP_IDS], t.id).toContain(sc.preset.sample);
+      for (const [k, v] of Object.entries(sc.preset?.params ?? {})) {
         const p = t.params.find((x) => x.key === k);
         expect(p, `${t.id}.${k}`).toBeDefined();
         if (p!.type === 'range') {
