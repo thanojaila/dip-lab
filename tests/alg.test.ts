@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { getCv } from './cvNode';
 import type { Cv, ImageMeta, RunContext } from '../src/core/types';
 import { TECHNIQUES, defaultParams } from '../src/registry';
-import { SAMPLES, sampleById } from '../src/core/samples';
+import { TEST_PATTERNS as SAMPLES, patternById as sampleById } from '../src/core/testPatterns';
 import { matToPixels, pixelsToMat, prepareInput, withMats } from '../src/core/matIO';
 import { fillTemplate } from '../src/exact/templates';
 import { histogramCv, histogramJS } from '../src/alg/histogram';
@@ -63,32 +63,32 @@ describe('algorithm correctness', () => {
     });
 
   it('gamma = 1 is the identity', () => {
-    const { out, inp } = run('P05', 'shapes', { gamma: 1 });
+    const { out, inp } = run('P05', 'tp-shapes', { gamma: 1 });
     expect(Array.from(out)).toEqual(Array.from(inp));
   });
   it('negative twice is identity; negative maps 0↔255', () => {
-    const { out, inp } = run('P01', 'ramp', {});
+    const { out, inp } = run('P01', 'tp-ramp', {});
     for (let i = 0; i < inp.length; i++) expect(out[i]).toBe(255 - inp[i]);
   });
   it('brightness without clip wraps, with clip saturates', () => {
-    const wrap = run('P02', 'ramp', { b: 100, clip: false });
-    const clip = run('P02', 'ramp', { b: 100, clip: true });
+    const wrap = run('P02', 'tp-ramp', { b: 100, clip: false });
+    const clip = run('P02', 'tp-ramp', { b: 100, clip: true });
     const idx = 250; // first row, x = 250 → r = 250
     expect(wrap.out[idx]).toBe((250 + 100) % 256);
     expect(clip.out[idx]).toBe(255);
   });
   it('quantisation produces exactly L distinct levels', () => {
-    const { out } = run('F04', 'ramp', { levels: 4 });
+    const { out } = run('F04', 'tp-ramp', { levels: 4 });
     expect(new Set(out).size).toBe(4);
   });
   it('median removes isolated salt-and-pepper; Gaussian does not', () => {
     const extremes = (a: Uint8Array) => a.filter((v) => v === 0 || v === 255).length / a.length;
     const before = withMats((track) => {
-      const c = ctxFor('impulse-noise', true, {}, track);
+      const c = ctxFor('tp-impulse-noise', true, {}, track);
       return extremes(Uint8Array.from(c.input.data));
     });
-    const med = run('S03', 'impulse-noise', { k: 3 });
-    const gau = run('S02', 'impulse-noise', { k: 3, sigma: 1 });
+    const med = run('S03', 'tp-impulse-noise', { k: 3 });
+    const gau = run('S02', 'tp-impulse-noise', { k: 3, sigma: 1 });
     expect(before).toBeGreaterThan(0.07);
     expect(extremes(med.out)).toBeLessThan(0.01);
     // Gaussian reduces exact extremes too, but leaves smudges: compare error vs. the median result
@@ -97,9 +97,9 @@ describe('algorithm correctness', () => {
   });
   it('CLAHE and equalisation widen the low-contrast range', () => {
     const range = (a: Uint8Array) => Math.max(...a) - Math.min(...a);
-    const base = run('P01', 'low-contrast', {});
-    const eq = run('H02', 'low-contrast', {});
-    const cl = run('H03', 'low-contrast', { clip: 4, tiles: 8 });
+    const base = run('P01', 'tp-low-contrast', {});
+    const eq = run('H02', 'tp-low-contrast', {});
+    const cl = run('H03', 'tp-low-contrast', { clip: 4, tiles: 8 });
     expect(range(base.out)).toBeLessThan(80);
     expect(range(eq.out)).toBeGreaterThan(200);
     expect(range(cl.out)).toBeGreaterThan(range(base.out));
@@ -111,8 +111,8 @@ describe('algorithm correctness', () => {
       for (let k = 0; k < 6; k++) { l += a[y * w + 120 + k]; r += a[y * w + 132 + k]; }
       return (r - l) / 6;
     };
-    const bi = run('S04', 'step-edge', { d: 9, sigmaColor: 30, sigmaSpace: 50 });
-    const ga = run('S02', 'step-edge', { k: 9, sigma: 3 });
+    const bi = run('S04', 'tp-step-edge', { d: 9, sigmaColor: 30, sigmaSpace: 50 });
+    const ga = run('S02', 'tp-step-edge', { k: 9, sigma: 3 });
     // sample across the edge column ~128: bilateral transition is a steeper
     const slope = (o: { out: Uint8Array; w: number }) => Math.abs(o.out[128 * o.w + 129] - o.out[128 * o.w + 126]);
     expect(slope(bi)).toBeGreaterThan(slope(ga));
@@ -120,35 +120,35 @@ describe('algorithm correctness', () => {
   });
   it('Canny: lower thresholds find more edge pixels', () => {
     const count = (a: Uint8Array) => a.filter((v) => v === 255).length;
-    expect(count(run('E01', 'shapes', { t1: 10, t2: 20 }).out)).toBeGreaterThan(count(run('E01', 'shapes', { t1: 50, t2: 150 }).out));
+    expect(count(run('E01', 'tp-shapes', { t1: 10, t2: 20 }).out)).toBeGreaterThan(count(run('E01', 'tp-shapes', { t1: 50, t2: 150 }).out));
   });
   it('Sobel magnitude peaks at 255 (minmax display)', () => {
-    expect(Math.max(...run('S08', 'shapes', {}).out)).toBe(255);
+    expect(Math.max(...run('S08', 'tp-shapes', {}).out)).toBe(255);
   });
   it('opening removes speckles from binarised blobs; closing never removes bright pixels', () => {
     const bright = (a: Uint8Array) => a.filter((v) => v === 255).length;
-    const base = run('M01', 'blobs', { op: 'dilate', k: 3, iters: 1 }); // reference only
-    const open = run('M02', 'blobs', { op: 'open', k: 5 });
-    const close = run('M02', 'blobs', { op: 'close', k: 5 });
-    const bin = run('P06', 'blobs', { mode: 'otsu' });
+    const base = run('M01', 'tp-blobs', { op: 'dilate', k: 3, iters: 1 }); // reference only
+    const open = run('M02', 'tp-blobs', { op: 'open', k: 5 });
+    const close = run('M02', 'tp-blobs', { op: 'close', k: 5 });
+    const bin = run('P06', 'tp-blobs', { mode: 'otsu' });
     expect(bright(open.out)).toBeLessThan(bright(bin.out));
     expect(bright(close.out)).toBeGreaterThanOrEqual(bright(bin.out));
     expect(bright(base.out)).toBeGreaterThan(bright(bin.out));
   });
   it('component counter finds particles and min-area removes small ones', () => {
-    const all = run('M03', 'blobs', { minArea: 0 });
-    const big = run('M03', 'blobs', { minArea: 80 });
+    const all = run('M03', 'tp-blobs', { minArea: 0 });
+    const big = run('M03', 'tp-blobs', { minArea: 80 });
     expect(Number(all.vars.total)).toBeGreaterThan(Number(big.vars.kept));
     expect(Number(big.vars.kept)).toBeGreaterThan(5);
   });
   it('resize changes output size by the scale', () => {
-    const r = run('F03', 'checker', { scale: 0.5, interp: 'area' });
+    const r = run('F03', 'tp-checker', { scale: 0.5, interp: 'area' });
     expect([r.w, r.h]).toEqual([128, 128]);
   });
   it('noise is reproducible through the full pipeline', () => {
-    const a = run('N01', 'shapes', { sigma: 20, seed: 3 });
-    const b = run('N01', 'shapes', { sigma: 20, seed: 3 });
-    const c = run('N01', 'shapes', { sigma: 20, seed: 4 });
+    const a = run('N01', 'tp-shapes', { sigma: 20, seed: 3 });
+    const b = run('N01', 'tp-shapes', { sigma: 20, seed: 3 });
+    const c = run('N01', 'tp-shapes', { sigma: 20, seed: 4 });
     expect(Array.from(a.out)).toEqual(Array.from(b.out));
     expect(Array.from(a.out)).not.toEqual(Array.from(c.out));
   });
@@ -157,7 +157,7 @@ describe('algorithm correctness', () => {
 describe('histogram', () => {
   it('sums to pixel count and calcHist agrees with the JS histogram', () => {
     withMats((track) => {
-      const px = sampleById('low-contrast')!.make();
+      const px = sampleById('tp-low-contrast')!.make();
       const rgba = track(pixelsToMat(cv, px));
       const g = track(prepareInput(cv, rgba, true));
       const hc = histogramCv(cv, g);
@@ -200,6 +200,6 @@ describe('Mat disposal', () => {
 describe('sample list', () => {
   it('has the six SRS-required phenomena', () => {
     const ids = SAMPLES.map((s) => s.id);
-    for (const id of ['ramp', 'checker', 'step-edge', 'low-contrast', 'impulse-noise', 'blobs']) expect(ids).toContain(id);
+    for (const id of ['ramp', 'checker', 'step-edge', 'low-contrast', 'impulse-noise', 'blobs']) expect(ids).toContain('tp-' + id);
   });
 });

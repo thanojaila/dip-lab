@@ -3,7 +3,7 @@ import { exportConfig, importConfig } from '../core/config';
 import { loadOpenCv, OPENCV_VERSION } from '../core/opencvLoader';
 import { matToPixels, pixelsToMat, prepareInput, withMats, type Pixels } from '../core/matIO';
 import { MAX_SIDE, planResize, validateUpload } from '../core/resizePolicy';
-import { SAMPLES, SAMPLE_IDS, sampleById } from '../core/samples';
+import { TEST_PATTERNS as SAMPLES, TP_IDS as SAMPLE_IDS, patternById as sampleById } from '../core/testPatterns';
 import { APP_VERSION, type Cv, type ImageMeta, type Params, type SegmentSpec, type TechniqueSpec } from '../core/types';
 import { fillTemplate } from '../exact/templates';
 import { SEGMENTS, TECHNIQUES, defaultParams, techniquesIn } from '../registry';
@@ -95,7 +95,7 @@ export class App {
 
   async start(): Promise<void> {
     this.build();
-    this.loadSample('low-contrast', false);
+    this.loadSample('tp-low-contrast', false);
     const t0 = performance.now();
     try {
       this.cv = await loadOpenCv();
@@ -151,7 +151,7 @@ export class App {
 
   private buildSourcePanel(): HTMLElement {
     for (const s of SAMPLES) this.sampleSelect.appendChild(h('option', { value: s.id }, s.title));
-    (this.sampleSelect as HTMLSelectElement).value = 'low-contrast';
+    (this.sampleSelect as HTMLSelectElement).value = 'tp-low-contrast';
     this.sampleSelect.addEventListener('change', () => this.loadSample((this.sampleSelect as HTMLSelectElement).value));
     const fileId = nextId('file');
     const cfgId = nextId('cfg');
@@ -178,7 +178,7 @@ export class App {
     this.sampleSelect.addEventListener('change', () => {
       blurb.textContent = 'Teaches ' + (sampleById((this.sampleSelect as HTMLSelectElement).value)?.teaches ?? '');
     });
-    blurb.textContent = 'Teaches ' + (sampleById('low-contrast')?.teaches ?? '');
+    blurb.textContent = 'Teaches ' + (sampleById('tp-low-contrast')?.teaches ?? '');
     this.sampleSelect.setAttribute('aria-describedby', 'sample-blurb');
     return h(
       'section',

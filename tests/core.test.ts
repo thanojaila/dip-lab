@@ -4,7 +4,7 @@ import { planResize, sniffImageType, validateUpload, MAX_BYTES } from '../src/co
 import { missingApis, probe } from '../src/core/capability';
 import { exportConfig, importConfig } from '../src/core/config';
 import { TECHNIQUES } from '../src/registry';
-import { SAMPLES, SAMPLE_IDS } from '../src/core/samples';
+import { TEST_PATTERNS as SAMPLES, TP_IDS } from '../src/core/testPatterns';
 import { diffPixels, histogramFromPixels, resizeNearest } from '../src/core/imageOps';
 import { fillTemplate } from '../src/exact/templates';
 import { percentileBounds } from '../src/alg/point';
@@ -75,11 +75,11 @@ describe('capability probe', () => {
 
 describe('config share', () => {
   it('round-trips params and contains no image data', () => {
-    const cfg = exportConfig('P05', { gamma: 0.5 }, 'low-contrast');
+    const cfg = exportConfig('P05', { gamma: 0.5 }, 'tp-low-contrast');
     const text = JSON.stringify(cfg);
     expect(text).not.toMatch(/data:image|base64/);
-    const back = importConfig(text, TECHNIQUES, SAMPLE_IDS);
-    expect(back).toEqual({ ok: true, technique: 'P05', params: { gamma: 0.5 }, sample: 'low-contrast' });
+    const back = importConfig(text, TECHNIQUES, TP_IDS);
+    expect(back).toEqual({ ok: true, technique: 'P05', params: { gamma: 0.5 }, sample: 'tp-low-contrast' });
   });
   it('clamps, drops unknown keys and rejects bad input', () => {
     const r = importConfig(JSON.stringify({ app: 'dip-lab', version: '1.2.3', technique: 'P05', params: { gamma: 99, evil: 1 } }), TECHNIQUES);
@@ -150,7 +150,7 @@ describe('curriculum content (Definition of Done)', () => {
       const sc = t.selfCheck;
       if (!sc) continue;
       expect(sc.correct).toBeLessThan(sc.options.length);
-      if (sc.preset.sample) expect(SAMPLE_IDS, t.id).toContain(sc.preset.sample);
+      if (sc.preset.sample) expect(TP_IDS, t.id).toContain(sc.preset.sample);
       for (const [k, v] of Object.entries(sc.preset.params)) {
         const p = t.params.find((x) => x.key === k);
         expect(p, `${t.id}.${k}`).toBeDefined();

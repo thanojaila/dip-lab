@@ -1,7 +1,7 @@
 import { createRng } from './prng';
 import type { Pixels } from './matIO';
 
-export interface SampleSpec {
+export interface TestPattern {
   id: string;
   title: string;
   /** One-line "teaches …" blurb (SRS §6.4). */
@@ -62,9 +62,9 @@ function smoothScene(): Pixels {
   return p;
 }
 
-export const SAMPLES: SampleSpec[] = [
+export const TEST_PATTERNS: TestPattern[] = [
   {
-    id: 'ramp',
+    id: 'tp-ramp',
     title: 'Gray ramp',
     teaches: 'quantization banding and clipping: a perfectly smooth 0→255 gradient shows every artifact.',
     make: () => {
@@ -74,7 +74,7 @@ export const SAMPLES: SampleSpec[] = [
     },
   },
   {
-    id: 'checker',
+    id: 'tp-checker',
     title: 'Checkerboard + fine stripes',
     teaches: 'sampling/aliasing and interpolation: hard edges and 1-pixel stripes expose how resizing treats detail.',
     make: () => {
@@ -89,7 +89,7 @@ export const SAMPLES: SampleSpec[] = [
     },
   },
   {
-    id: 'step-edge',
+    id: 'tp-step-edge',
     title: 'Noisy step edge',
     teaches: 'edge preservation: Gaussian blur smears the step, bilateral keeps it while still cleaning the flat areas.',
     make: () => {
@@ -103,7 +103,7 @@ export const SAMPLES: SampleSpec[] = [
     },
   },
   {
-    id: 'low-contrast',
+    id: 'tp-low-contrast',
     title: 'Low-contrast scene',
     teaches: 'point processing and histograms: all values sit in a narrow band, so stretch, gamma, equalisation and CLAHE all help.',
     make: () => {
@@ -120,7 +120,7 @@ export const SAMPLES: SampleSpec[] = [
     },
   },
   {
-    id: 'impulse-noise',
+    id: 'tp-impulse-noise',
     title: 'Salt-and-pepper scene',
     teaches: 'nonlinear filtering: 8% of pixels are exactly 0 or 255, so median removes them and Gaussian smears them.',
     make: () => {
@@ -130,7 +130,7 @@ export const SAMPLES: SampleSpec[] = [
     },
   },
   {
-    id: 'blobs',
+    id: 'tp-blobs',
     title: 'Particles with speckles',
     teaches: 'thresholding and morphology: bright blobs on a dark field, plus 1–2 px speckles and holes for opening, closing and counting.',
     make: () => {
@@ -148,7 +148,7 @@ export const SAMPLES: SampleSpec[] = [
     },
   },
   {
-    id: 'shapes',
+    id: 'tp-shapes',
     title: 'Colored shapes (mild noise)',
     teaches: 'edges and sharpening: clear boundaries with a little noise, so Sobel, Canny thresholds and unsharp masking behave visibly.',
     make: () => {
@@ -167,5 +167,8 @@ export const SAMPLES: SampleSpec[] = [
   },
 ];
 
-export const SAMPLE_IDS = SAMPLES.map((s) => s.id);
-export const sampleById = (id: string): SampleSpec | undefined => SAMPLES.find((s) => s.id === id);
+/** Only these three are offered on the shelf; the rest remain for tests and old config files. */
+export const SHELF_PATTERN_IDS = ['tp-ramp', 'tp-checker', 'tp-step-edge'];
+export const patternById = (id: string): TestPattern | undefined => TEST_PATTERNS.find((s) => s.id === id);
+
+export const TP_IDS = TEST_PATTERNS.map((p) => p.id);

@@ -1,0 +1,464 @@
+{
+ "version": "2.0.0",
+ "note": "Every file here is redistributable. No course images. Credits must appear on the app attribution page.",
+ "images": [
+  {
+   "id": "cameraman",
+   "file": "images/cameraman.png",
+   "width": 512,
+   "height": 512,
+   "mode": "gray",
+   "bytes": 147329,
+   "resized_from": null,
+   "licence": "CC0",
+   "credit": "Lav Varshney, via scikit-image (data.camera)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "All-rounder: smooth sky, sharp tripod edges, fine grass texture.",
+   "techniques": [
+    "F01",
+    "F04",
+    "N01",
+    "N02",
+    "S01",
+    "S02",
+    "S03",
+    "S05",
+    "S06",
+    "S08",
+    "E01",
+    "Q01",
+    "Q02",
+    "Q03",
+    "Q04"
+   ]
+  },
+  {
+   "id": "coins",
+   "file": "images/coins.png",
+   "width": 384,
+   "height": 303,
+   "mode": "gray",
+   "bytes": 79577,
+   "resized_from": null,
+   "licence": "No known copyright restrictions",
+   "credit": "Brooklyn Museum Collection, via scikit-image (data.coins)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Uneven lighting breaks a single global threshold; 24 coins to count.",
+   "techniques": [
+    "P06",
+    "T01",
+    "M02",
+    "M03",
+    "FT03",
+    "FT05"
+   ]
+  },
+  {
+   "id": "text",
+   "file": "images/text.png",
+   "width": 448,
+   "height": 172,
+   "mode": "gray",
+   "bytes": 47205,
+   "resized_from": null,
+   "licence": "Public domain",
+   "credit": "Wikipedia \"Corner.png\", via scikit-image (data.text)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Letter strokes are full of corners; dark, low-contrast scan.",
+   "techniques": [
+    "P03",
+    "FT02",
+    "M01"
+   ]
+  },
+  {
+   "id": "cat",
+   "file": "images/cat.jpg",
+   "width": 451,
+   "height": 300,
+   "mode": "rgb",
+   "bytes": 38702,
+   "resized_from": null,
+   "licence": "CC0",
+   "credit": "Stefan van der Walt, via scikit-image (data.chelsea)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Fur detail next to strong eye/ear edges: shows what each blur destroys.",
+   "techniques": [
+    "F02",
+    "S02",
+    "S04",
+    "S05",
+    "C01"
+   ]
+  },
+  {
+   "id": "coffee",
+   "file": "images/coffee.jpg",
+   "width": 600,
+   "height": 400,
+   "mode": "rgb",
+   "bytes": 79975,
+   "resized_from": null,
+   "licence": "CC0",
+   "credit": "Rachel Michetti, via scikit-image (data.coffee)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Saturated colour and concentric circles.",
+   "techniques": [
+    "F02",
+    "C01",
+    "H04",
+    "FT05"
+   ]
+  },
+  {
+   "id": "rocket",
+   "file": "images/rocket.jpg",
+   "width": 640,
+   "height": 427,
+   "mode": "rgb",
+   "bytes": 56975,
+   "resized_from": null,
+   "licence": "Public domain",
+   "credit": "SpaceX, via scikit-image (data.rocket)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Night scene with detail hidden in the shadows.",
+   "techniques": [
+    "P02",
+    "P05",
+    "H04",
+    "G01",
+    "G02"
+   ]
+  },
+  {
+   "id": "hubble",
+   "file": "images/hubble.jpg",
+   "width": 1000,
+   "height": 872,
+   "mode": "rgb",
+   "bytes": 309829,
+   "resized_from": null,
+   "licence": "Public domain (NASA)",
+   "credit": "NASA / ESA Hubble eXtreme Deep Field, via scikit-image (data.hubble_deep_field)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "92% of pixels are nearly black: the case log and gamma were made for.",
+   "techniques": [
+    "P04",
+    "P05",
+    "P06",
+    "M03",
+    "M04"
+   ]
+  },
+  {
+   "id": "retina",
+   "file": "images/retina.jpg",
+   "width": 1024,
+   "height": 1024,
+   "mode": "rgb",
+   "bytes": 133197,
+   "resized_from": [
+    1411,
+    1411
+   ],
+   "licence": "CC0",
+   "credit": "Mikael Haggstrom, via scikit-image (data.retina)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Thin vessels on an unevenly lit background: global EQ vs CLAHE.",
+   "techniques": [
+    "F02",
+    "C01",
+    "H01",
+    "H02",
+    "H03"
+   ]
+  },
+  {
+   "id": "brick",
+   "file": "images/brick.png",
+   "width": 512,
+   "height": 512,
+   "mode": "gray",
+   "bytes": 114762,
+   "resized_from": null,
+   "licence": "CC0",
+   "credit": "CC0Textures \"Bricks25\", via scikit-image (data.brick)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Regular pattern: aliasing when shrunk, directional gradients, clear spectrum.",
+   "techniques": [
+    "F03",
+    "F05",
+    "S08",
+    "Q01",
+    "FT04"
+   ]
+  },
+  {
+   "id": "gravel",
+   "file": "images/gravel.png",
+   "width": 512,
+   "height": 512,
+   "mode": "gray",
+   "bytes": 204160,
+   "resized_from": null,
+   "licence": "CC0",
+   "credit": "CC0Textures \"Gravel04\", via scikit-image (data.gravel)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Pure texture, energy at every frequency.",
+   "techniques": [
+    "Q01",
+    "Q03",
+    "S03"
+   ]
+  },
+  {
+   "id": "grass",
+   "file": "images/grass.png",
+   "width": 512,
+   "height": 512,
+   "mode": "gray",
+   "bytes": 221186,
+   "resized_from": null,
+   "licence": "CC0",
+   "credit": "Linolafett, via scikit-image (data.grass)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Fine random texture: looks like noise to a filter.",
+   "techniques": [
+    "S04",
+    "Q01"
+   ]
+  },
+  {
+   "id": "horse",
+   "file": "images/horse.png",
+   "width": 400,
+   "height": 328,
+   "mode": "gray",
+   "bytes": 1748,
+   "resized_from": null,
+   "licence": "CC0",
+   "credit": "Andreas Preuss (marauder), openclipart, via scikit-image (data.horse)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Clean binary silhouette with thin legs and tail.",
+   "techniques": [
+    "M01",
+    "M02",
+    "FT03"
+   ]
+  },
+  {
+   "id": "clock_motion",
+   "file": "images/clock_motion.png",
+   "width": 400,
+   "height": 300,
+   "mode": "gray",
+   "bytes": 46520,
+   "resized_from": null,
+   "licence": "Public domain",
+   "credit": "Stefan van der Walt, via scikit-image (data.clock)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Real horizontal motion blur: sharpening cannot undo it.",
+   "techniques": [
+    "S05",
+    "S06",
+    "Q01"
+   ]
+  },
+  {
+   "id": "tissue_ihc",
+   "file": "images/tissue_ihc.jpg",
+   "width": 512,
+   "height": 512,
+   "mode": "rgb",
+   "bytes": 98927,
+   "resized_from": null,
+   "licence": "No known copyright restrictions",
+   "credit": "Center for Microscopy And Molecular Imaging (CMMI), via scikit-image (data.immunohistochemistry)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Brown stain vs blue counterstain: colour carries the information.",
+   "techniques": [
+    "F02",
+    "C01"
+   ]
+  },
+  {
+   "id": "cell",
+   "file": "images/cell.png",
+   "width": 550,
+   "height": 660,
+   "mode": "gray",
+   "bytes": 73900,
+   "resized_from": null,
+   "licence": "CC0",
+   "credit": "Paul Muller et al., via scikit-image (data.cell)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "One bright cell on a banded background.",
+   "techniques": [
+    "P03",
+    "P06",
+    "H02"
+   ]
+  },
+  {
+   "id": "microaneurysms",
+   "file": "images/microaneurysms.png",
+   "width": 102,
+   "height": 102,
+   "mode": "gray",
+   "bytes": 4841,
+   "resized_from": null,
+   "licence": "CC0",
+   "credit": "Andreas Maier, via scikit-image (data.microaneurysms)",
+   "origin": "scikit-image 0.26.0 sample data (licence as stated in the skimage.data docstring)",
+   "teaches": "Tiny 102x102 low-contrast patch: enlarge it to compare interpolators.",
+   "techniques": [
+    "F03",
+    "P03",
+    "H02"
+   ]
+  },
+  {
+   "id": "sudoku",
+   "file": "images/sudoku.png",
+   "width": 558,
+   "height": 563,
+   "mode": "rgb",
+   "bytes": 241749,
+   "resized_from": null,
+   "licence": "Apache-2.0 (OpenCV sample)",
+   "credit": "OpenCV samples/data/sudoku.png",
+   "origin": "OpenCV 4.x repository, samples/data (repo licence Apache-2.0; OpenCV does not document where each sample photo came from)",
+   "teaches": "Shadow across a page: Otsu fails, adaptive threshold works; grid lines for Hough; skewed page to straighten.",
+   "techniques": [
+    "P06",
+    "T01",
+    "FT04",
+    "G03"
+   ]
+  },
+  {
+   "id": "building",
+   "file": "images/building.jpg",
+   "width": 868,
+   "height": 600,
+   "mode": "rgb",
+   "bytes": 117010,
+   "resized_from": null,
+   "licence": "Apache-2.0 (OpenCV sample)",
+   "credit": "OpenCV samples/data/building.jpg",
+   "origin": "OpenCV 4.x repository, samples/data (repo licence Apache-2.0; OpenCV does not document where each sample photo came from)",
+   "teaches": "Long straight architectural edges.",
+   "techniques": [
+    "E01",
+    "S08",
+    "FT04",
+    "FT02"
+   ]
+  },
+  {
+   "id": "smarties",
+   "file": "images/smarties.png",
+   "width": 413,
+   "height": 356,
+   "mode": "rgb",
+   "bytes": 93197,
+   "resized_from": null,
+   "licence": "Apache-2.0 (OpenCV sample)",
+   "credit": "OpenCV samples/data/smarties.png",
+   "origin": "OpenCV 4.x repository, samples/data (repo licence Apache-2.0; OpenCV does not document where each sample photo came from)",
+   "teaches": "Coloured round candies on white.",
+   "techniques": [
+    "C01",
+    "FT05"
+   ]
+  },
+  {
+   "id": "blocks",
+   "file": "images/blocks.png",
+   "width": 256,
+   "height": 256,
+   "mode": "rgb",
+   "bytes": 34032,
+   "resized_from": null,
+   "licence": "Apache-2.0 (OpenCV sample)",
+   "credit": "OpenCV samples/data/blox.jpg",
+   "origin": "OpenCV 4.x repository, samples/data (repo licence Apache-2.0; OpenCV does not document where each sample photo came from)",
+   "teaches": "Toy blocks: textbook corners and edges.",
+   "techniques": [
+    "FT02",
+    "E01",
+    "S08"
+   ]
+  },
+  {
+   "id": "shapes",
+   "file": "images/shapes.png",
+   "width": 400,
+   "height": 300,
+   "mode": "rgb",
+   "bytes": 12286,
+   "resized_from": null,
+   "licence": "Apache-2.0 (OpenCV sample)",
+   "credit": "OpenCV samples/data/pic1.png",
+   "origin": "OpenCV 4.x repository, samples/data (repo licence Apache-2.0; OpenCV does not document where each sample photo came from)",
+   "teaches": "Solid shapes plus small dots: closing/opening and contour counting.",
+   "techniques": [
+    "M02",
+    "M03",
+    "FT03"
+   ]
+  },
+  {
+   "id": "sheet_music",
+   "file": "images/sheet_music.png",
+   "width": 1024,
+   "height": 134,
+   "mode": "rgb",
+   "bytes": 12083,
+   "resized_from": null,
+   "licence": "Apache-2.0 (OpenCV sample)",
+   "credit": "OpenCV samples/data/notes.png",
+   "origin": "OpenCV 4.x repository, samples/data (repo licence Apache-2.0; OpenCV does not document where each sample photo came from)",
+   "teaches": "Staff lines vs note heads: the structuring-element shape decides what survives.",
+   "techniques": [
+    "M02",
+    "M04"
+   ]
+  },
+  {
+   "id": "cards",
+   "file": "images/cards.png",
+   "width": 640,
+   "height": 480,
+   "mode": "rgb",
+   "bytes": 70113,
+   "resized_from": null,
+   "licence": "Apache-2.0 (OpenCV sample)",
+   "credit": "OpenCV samples/data/cards.png",
+   "origin": "OpenCV 4.x repository, samples/data (repo licence Apache-2.0; OpenCV does not document where each sample photo came from)",
+   "teaches": "Many repeated diamond pips: one template, many matches.",
+   "techniques": [
+    "FT01"
+   ]
+  },
+  {
+   "id": "circuit_board",
+   "file": "images/circuit_board.jpg",
+   "width": 640,
+   "height": 480,
+   "mode": "rgb",
+   "bytes": 165263,
+   "resized_from": null,
+   "licence": "Apache-2.0 (OpenCV sample)",
+   "credit": "OpenCV samples/data/board.jpg",
+   "origin": "OpenCV 4.x repository, samples/data (repo licence Apache-2.0; OpenCV does not document where each sample photo came from)",
+   "teaches": "Dense fine detail and repeated components.",
+   "techniques": [
+    "S05",
+    "E01",
+    "FT01",
+    "Q03"
+   ]
+  }
+ ]
+}
