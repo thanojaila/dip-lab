@@ -87,3 +87,15 @@ describe('kernel and structuring-element math', () => {
     expect(structuringElement('rect', 41, 1)[0].length).toBe(41);
   });
 });
+
+import { downscaleTo } from '../src/core/imageOps';
+describe('live-preview downscale', () => {
+  it('keeps aspect and limits the longest side; leaves small images alone', () => {
+    const p = loadImage('hubble');
+    const s = downscaleTo(p, 384);
+    expect(Math.max(s.w, s.h)).toBe(384);
+    expect(Math.abs(s.w / s.h - p.w / p.h)).toBeLessThan(0.02);
+    const tiny = loadImage('microaneurysms');
+    expect(downscaleTo(tiny, 384)).toBe(tiny);
+  });
+});
