@@ -75,7 +75,7 @@ export function suggest(s: CheckupStats): Suggestion[] {
   if (s.range < 100) out.push({ id: 'low-contrast', text: 'Low contrast: most pixels sit in a narrow band. Try Contrast stretch or CLAHE.', concepts: ['P03', 'H03'] });
   if (s.fracDark > 0.6) out.push({ id: 'dark', text: 'Mostly dark: over 60% of pixels are very dark. Try Gamma below 1 or Log.', concepts: ['P05', 'P04'] });
   if (s.fracExtreme > 0.01 && s.isolatedExtremeFrac > 0.005) out.push({ id: 'impulse', text: 'Looks like it may have impulse noise (isolated black and white pixels). Try Median.', concepts: ['S03'] });
-  if (s.otsuSeparation < 0.55) out.push({ id: 'no-split', text: 'No clean two-level split in the histogram, so one global threshold may struggle. Try Adaptive threshold.', concepts: ['T01'] });
+  if (s.otsuSeparation < 0.7) out.push({ id: 'no-split', text: 'No clean two-level split in the histogram, so one global threshold may struggle. Try Adaptive threshold.', concepts: ['T01'] });
   if (s.lapVar < 40) out.push({ id: 'soft', text: 'Soft image: little fine detail. Sharpening can crisp existing edges but cannot restore lost detail.', concepts: ['S05'] });
   else if (s.lapVar > 600) out.push({ id: 'detailed', text: 'Lots of fine detail. Smoothing will remove some of it; try Bilateral to keep edges.', concepts: ['S04'] });
   return out;
