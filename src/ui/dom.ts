@@ -30,3 +30,12 @@ let uid = 0;
 export const nextId = (prefix: string): string => `${prefix}-${++uid}`;
 
 export const prefersReducedMotion = (): boolean => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+/** SVG element helper (attributes only; no innerHTML). */
+export function s<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number | undefined> = {}, ...children: (Node | null | undefined | false)[]): SVGElementTagNameMap[K] {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) if (v !== undefined) el.setAttribute(k, String(v));
+  for (const c of children) if (c) el.appendChild(c);
+  return el;
+}

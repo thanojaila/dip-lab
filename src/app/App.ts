@@ -1,43 +1,35 @@
-import { missingApis, probe, type CapabilityMap } from '../core/capability';
+import { missingApis, probe, PROBED_APIS, type CapabilityMap } from '../core/capability';
 import { exportConfig, importConfig } from '../core/config';
+import { checkupStats, suggest } from '../core/imageCheckup';
+import { downscaleTo, isGrayPixels } from '../core/imageOps';
 import { loadOpenCv, OPENCV_VERSION } from '../core/opencvLoader';
-import { matToPixels, pixelsToMat, prepareInput, withMats, type Pixels } from '../core/matIO';
+import { matToPixels, pixelsToMat, withMats, type Pixels } from '../core/matIO';
+import { Progress } from '../core/progress';
 import { MAX_SIDE, planResize, validateUpload } from '../core/resizePolicy';
-import { TEST_PATTERNS as SAMPLES, TP_IDS as SAMPLE_IDS, patternById as sampleById } from '../core/testPatterns';
-import { APP_VERSION, type Cv, type ImageMeta, type Params, type SegmentSpec, type TechniqueSpec } from '../core/types';
-import { fillTemplate } from '../exact/templates';
-import { SEGMENTS, TECHNIQUES, defaultParams, techniquesIn } from '../registry';
+import { executeRun, type RunOutput, type RunRequest } from '../core/runTechnique';
+import { ALL_SAMPLE_IDS, imageById, loadSamplePixels, normalizeSampleId, refById } from '../core/sampleRegistry';
+import { APP_VERSION, type Cv, type ImageMeta, type Params, type TechniqueSpec } from '../core/types';
+import { HeavyRunner } from '../core/workerClient';
+import { SEGMENTS, TECHNIQUES, defaultParams, heroParamsOf, techniqueById, techniquesIn } from '../registry';
 import { Attribution } from '../ui/Attribution';
-import { Banners } from '../ui/Banners';
-import { Beyond, EngineStatus } from '../ui/Beyond';
-import { clear, h, nextId, prefersReducedMotion } from '../ui/dom';
+import { ChallengeBadge } from '../ui/ChallengeBadge';
+import { ConceptCard } from '../ui/ConceptCard';
+import { clear, h, prefersReducedMotion } from '../ui/dom';
+import { EngineStatus } from '../ui/Engine';
 import { ExactPanel } from '../ui/ExactPanel';
-import { HistogramPanel } from '../ui/Histogram';
+import { KernelGrid } from '../ui/explainers/KernelGrid';
+import { StepStrip } from '../ui/explainers/StepStrip';
+import { StructuringElementView } from '../ui/explainers/StructuringElement';
+import { ImageShelf } from '../ui/ImageShelf';
 import { InstructorPanel, InstructorSegmentNotes } from '../ui/InstructorPanel';
-import { Stage } from '../ui/Stage';
-import { TechniqueCard } from '../ui/TechniqueCard';
-import { Toc } from '../ui/Toc';
+import { Scope } from '../ui/scope/Scope';
+import { Stage } from '../ui/stage/Stage';
+import { TopBar } from '../ui/TopBar';
+import { WorldMap } from '../ui/WorldMap';
 
-const PROGRESS_KEY = 'diplab.progress.v1';
-
-function loadProgress(): Set<string> {
-  try {
-    const raw = localStorage.getItem(PROGRESS_KEY);
-    const arr = raw ? (JSON.parse(raw) as unknown) : [];
-    return new Set(Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string' && SEGMENTS.some((s) => s.id === x)) : []);
-  } catch {
-    return new Set();
-  }
-}
-function saveProgress(p: Set<string>): void {
-  try {
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify([...p]));
-  } catch {
-    /* storage unavailable: progress simply is not remembered */
-  }
-}
-
+const THEME_KEY = 'diplab.theme';
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+const safeStorage = (): Storage | null => { try { return localStorage; } catch { return null; } };
 
 function download(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
@@ -45,471 +37,651 @@ function download(blob: Blob, name: string): void {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000); // NFR-04: do not leak object URLs
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+interface Source {
+  /** Bundled image or test-pattern id; null for the learner's upload. */
+  id: string | null;
+  title: string;
+  base: Pixels;
+  origW: number;
+  origH: number;
+  resized: boolean;
+}
+interface HistoryStep { label: string; before: Pixels; id: string }
 
 export class App {
   private cv: Cv | null = null;
   private caps: CapabilityMap = {};
-  private base: Pixels | null = null;
+  private progress = new Progress(safeStorage(), TECHNIQUES.map((t) => t.id));
+  private heavy = new HeavyRunner();
+  private src: Source | null = null;
   private working: Pixels | null = null;
-  private inputView: Pixels | null = null;
-  private meta: ImageMeta | null = null;
-  private gray = true;
+  private history: HistoryStep[] = [];
+  private upload: Source | null = null;
+  private refUpload: Pixels | null = null;
+  private mine = false;
+  private out: RunOutput | null = null;
+  private activeId: string | null = null;
   private busy = false;
   private dirty = false;
-  private progress = loadProgress();
-  private cards = new Map<string, TechniqueCard>();
-  private segEls = new Map<string, HTMLElement>();
-  private currentSeg: string | null = SEGMENTS[0].id;
+  private pendingMine: { spec: TechniqueSpec; params: Params } | null = null;
   private instructorOn = false;
+  private guided = true;
 
-  private exact = new ExactPanel();
-  private hist = new HistogramPanel();
+  private topbar: TopBar;
   private stage: Stage;
-  private toc: Toc;
+  private scope = new Scope();
+  private exact = new ExactPanel();
+  private steps = new StepStrip();
+  private shelf: ImageShelf;
+  private map: WorldMap;
   private message = h('p', { class: 'status', role: 'status', 'aria-live': 'polite' });
-  private engine = h('div', { class: 'engine-slot' }, h('p', { class: 'status' }, `Loading OpenCV.js ${OPENCV_VERSION} (about 10 MB; cached by your browser after the first visit)…`));
-  private metaLine = h('p', { class: 'meta-line' });
-  private sampleSelect = h('select', { id: 'sample-select' });
-  private instructorBtn: HTMLButtonElement;
+  private cards = new Map<string, ConceptCard>();
+  private worlds = new Map<string, HTMLElement>();
+  private kernels = new Map<string, KernelGrid>();
+  private se = new StructuringElementView();
+  private guide = h('section', { class: 'panel guide', 'aria-label': 'Guided path' });
   private instructorPanel = InstructorPanel();
-  private beyondSlot = h('div', {});
+  private timers = new Map<string, number>();
 
   constructor(private root: HTMLElement) {
+    this.topbar = new TopBar({ onMap: () => this.map.open(), onInstructor: () => this.toggleInstructor(), onTheme: () => this.toggleTheme() });
     this.stage = new Stage({
       onPin: () => this.pin(),
-      onUseAsInput: () => this.useResultAsInput(),
+      onUseAsInput: () => this.chain(),
       onExportPng: () => this.exportPng(),
       onResetImage: () => this.resetImage(),
+      onFile: (f) => void this.loadUpload(f),
+      onUndo: (i) => this.undo(i),
+      onCancel: () => this.cancel(),
+      onRect: (r) => this.onRect(r),
+      onCorners: (c) => this.onCorners(c),
     });
-    this.toc = new Toc(SEGMENTS, { onNext: () => this.nextConcept(), onGuidedChange: () => this.refreshProgress() });
-    this.instructorBtn = h('button', { type: 'button', class: 'btn secondary', 'aria-pressed': 'false', onclick: () => this.toggleInstructor() }, 'Instructor mode');
+    this.shelf = new ImageShelf({ onPick: (id) => void this.pickSample(id), onFile: (f) => void this.loadUpload(f), onSuggestion: (id) => this.activate(id, true) });
+    this.map = new WorldMap(SEGMENTS, TECHNIQUES, this.progress, (w) => this.goWorld(w), () => this.resetProgress());
+    this.scope.spectrum.onCutoff = (d0) => this.onCutoff(d0);
+    this.stage.inspector.onChange = (v) => {
+      this.scope.curve.setMark(v);
+      this.refreshKernel();
+    };
     window.addEventListener('beforeunload', (e) => {
-      if (this.dirty) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
+      if (this.dirty) { e.preventDefault(); e.returnValue = ''; }
     });
+    this.initTheme();
   }
 
+  // =========================================================== startup
   async start(): Promise<void> {
     this.build();
-    this.loadSample('tp-low-contrast', false);
+    await this.pickSample(TECHNIQUES[0].heroImage, false);
     const t0 = performance.now();
     try {
       this.cv = await loadOpenCv();
-      this.caps = probe(this.cv as unknown as Record<string, unknown>);
-      this.rebuildBeyond();
-      clear(this.engine);
-      this.engine.appendChild(EngineStatus(this.caps, OPENCV_VERSION, performance.now() - t0));
-      this.rebuildCardsAvailability();
-      this.recomputeInputView();
-      this.setReady(true);
-      this.say('Engine ready. Pick a technique and press Run.');
+      this.caps = probe(this.cv as unknown as Record<string, unknown>, [...PROBED_APIS, ...new Set(TECHNIQUES.filter((t) => !t.explainerOnly).flatMap((t) => t.requiredCvApis))]);
+      this.topbar.engineSlot.appendChild(EngineStatus(this.caps, OPENCV_VERSION, performance.now() - t0));
+      this.applyAvailability();
+      for (const c of this.cards.values()) c.setReady(true);
+      this.say('Engine ready. Open a concept, press "Show me", or upload your own image.');
     } catch (e) {
-      clear(this.engine);
-      this.engine.appendChild(h('p', { class: 'error', role: 'alert' }, `OpenCV.js failed to load: ${(e as Error).message} Techniques are disabled; the page cannot process images without it.`));
+      this.topbar.engineSlot.appendChild(h('p', { class: 'error', role: 'alert' }, `OpenCV.js failed to load: ${(e as Error).message} Concepts are disabled; the page cannot process images without it.`));
     }
   }
 
-  // ---------- layout ----------
   private build(): void {
-    const header = h(
-      'header',
-      { class: 'site-header' },
-      h('div', { class: 'title-row' }, h('h1', {}, 'DIP Lab'), h('p', { class: 'subtitle' }, 'Interactive digital image processing, in your browser'), this.instructorBtn),
-      Banners(),
-      this.engine,
-    );
-
-    const imagePanel = this.buildSourcePanel();
-    const segments = SEGMENTS.map((s) => this.buildSegment(s));
-    const left = h('div', { class: 'col-left' }, this.buildIntro(), imagePanel, this.instructorPanel, ...segments, Attribution());
-    const right = h('aside', { class: 'col-right', 'aria-label': 'Results' }, this.stage.el, this.exact.el, this.hist.el);
-
+    const worlds = SEGMENTS.map((w) => this.buildWorld(w));
+    this.buildGuide();
+    const left = h('div', { class: 'col-left' }, this.guide, this.instructorPanel, h('section', { class: 'panel', id: 'about' }, h('h2', {}, 'How this works'), h('ol', {},
+      h('li', {}, 'Open a concept. The stage shows a real photograph chosen because it shows the problem.'),
+      h('li', {}, 'Commit to a prediction, press "Show me", and drag the divider between Original and Result.'),
+      h('li', {}, 'Hover the image to read the actual pixel numbers; read the Exact panel to see precisely what ran.'),
+      h('li', {}, 'Upload your own image any time: every concept works on it.')), this.importControl()), this.message, ...worlds, Attribution(() => this.resetProgress()));
+    const right = h('aside', { class: 'col-right', 'aria-label': 'Stage and results' }, this.stage.el, this.scope.el, this.steps.el, this.exact.el, this.shelf.el);
     this.root.append(
       h('a', { class: 'skip', href: '#main' }, 'Skip to the lab'),
-      header,
-      this.toc.el,
+      this.topbar.el,
       h('main', { id: 'main', class: 'layout' }, left, right),
       h('footer', { class: 'site-footer' }, h('p', {}, `DIP Lab v${APP_VERSION} · MIT licensed · `, h('a', { href: '#attribution' }, 'Attribution and privacy'))),
+      this.map.dialog,
     );
-    this.observeSegments();
     this.refreshProgress();
-    this.setReady(false);
+    for (const c of this.cards.values()) c.setReady(false);
   }
 
-  private buildIntro(): HTMLElement {
-    return h(
-      'section',
-      { class: 'panel intro', 'aria-labelledby': 'intro-h' },
-      h('h2', { id: 'intro-h' }, 'How to use this lab'),
-      h('ol', {}, h('li', {}, 'Pick a built-in sample or upload your own image (it stays on your computer).'), h('li', {}, 'Work through the segments in order, or turn off "Guided path" to browse freely.'), h('li', {}, 'Set parameters and press Run (or Ctrl/Cmd + Enter inside a card).'), h('li', {}, 'Compare Original, Result and Diff, then read the Exact transform panel to see precisely what ran.'), h('li', {}, 'Try the "Predict, then check" boxes: commit to a guess before you run.')),
-    );
-  }
-
-  private buildSourcePanel(): HTMLElement {
-    for (const s of SAMPLES) this.sampleSelect.appendChild(h('option', { value: s.id }, s.title));
-    (this.sampleSelect as HTMLSelectElement).value = 'tp-low-contrast';
-    this.sampleSelect.addEventListener('change', () => this.loadSample((this.sampleSelect as HTMLSelectElement).value));
-    const fileId = nextId('file');
-    const cfgId = nextId('cfg');
-    const grayId = nextId('gray');
-    const grayBox = h('input', { type: 'checkbox', id: grayId, checked: true });
-    grayBox.addEventListener('change', () => {
-      this.gray = (grayBox as HTMLInputElement).checked;
-      this.recomputeInputView();
-      this.say(`Now working in ${this.gray ? 'grayscale' : 'RGB'}. Run a technique again to see its effect.`);
-    });
-    const file = h('input', { type: 'file', id: fileId, accept: 'image/png,image/jpeg,image/webp' });
-    file.addEventListener('change', () => {
-      const f = (file as HTMLInputElement).files?.[0];
-      if (f) void this.loadUpload(f);
-      (file as HTMLInputElement).value = '';
-    });
-    const cfg = h('input', { type: 'file', id: cfgId, accept: 'application/json,.json' });
-    cfg.addEventListener('change', () => {
-      const f = (cfg as HTMLInputElement).files?.[0];
-      if (f) void this.importConfigFile(f);
-      (cfg as HTMLInputElement).value = '';
-    });
-    const blurb = h('p', { class: 'hint', id: 'sample-blurb' });
-    this.sampleSelect.addEventListener('change', () => {
-      blurb.textContent = 'Teaches ' + (sampleById((this.sampleSelect as HTMLSelectElement).value)?.teaches ?? '');
-    });
-    blurb.textContent = 'Teaches ' + (sampleById('tp-low-contrast')?.teaches ?? '');
-    this.sampleSelect.setAttribute('aria-describedby', 'sample-blurb');
-    return h(
-      'section',
-      { class: 'panel source', id: 'source', 'aria-labelledby': 'source-h' },
-      h('h2', { id: 'source-h' }, 'Image'),
-      h('div', { class: 'param' }, h('label', { for: 'sample-select' }, 'Built-in synthetic sample'), this.sampleSelect, blurb),
-      h('div', { class: 'param' }, h('label', { for: fileId }, 'Or upload an image (PNG, JPEG or WebP, up to 8 MB; longest side is reduced to ' + MAX_SIDE + ' px)'), file),
-      h('div', { class: 'param' }, h('label', { class: 'inline', for: grayId }, grayBox, ' Work in grayscale (recommended)')),
-      h('div', { class: 'param' }, h('label', { for: cfgId }, 'Import a shared technique config (.json, parameters only)'), cfg),
-      this.metaLine,
-      this.message,
-    );
-  }
-
-  private buildSegment(seg: SegmentSpec): HTMLElement {
-    const el = h('section', { class: 'segment', id: `seg-${seg.id}`, 'aria-labelledby': `seg-h-${seg.id}` });
-    const status = h('span', { class: 'seg-status' });
-    el.appendChild(h('header', { class: 'seg-head' }, h('p', { class: 'seg-num' }, `Segment ${seg.index}`), h('h2', { id: `seg-h-${seg.id}` }, seg.title, ' ', status), h('p', { class: 'tagline' }, seg.tagline)));
-    const notes = InstructorSegmentNotes(seg.id);
+  private buildWorld(w: (typeof SEGMENTS)[number]): HTMLElement {
+    const el = h('section', { class: `world accent-${w.accent}`, id: `seg-${w.id}`, 'aria-labelledby': `wh-${w.id}` });
+    el.appendChild(h('header', { class: 'world-head' }, h('p', { class: 'num' }, `World ${w.index}`), h('h2', { id: `wh-${w.id}` }, w.title), h('p', {}, w.tagline), w.note ? h('span', { class: 'world-note' }, w.note) : null));
+    const notes = InstructorSegmentNotes(w.id);
     if (notes) el.appendChild(notes);
-    if (seg.id === 'beyond') el.appendChild(this.beyondSlot);
-    for (const t of techniquesIn(seg.id)) {
-      const card = new TechniqueCard(t, {
-        missingApis: [],
-        sampleTitle: t.sampleHint ? sampleById(t.sampleHint)?.title : undefined,
-        onRun: (spec, params) => void this.run(spec, params),
-        onLoadSample: (id) => {
-          (this.sampleSelect as HTMLSelectElement).value = id;
-          this.loadSample(id);
-        },
-        onExportConfig: (spec, params) => this.exportCfg(spec, params),
-        onSelfCheckRun: (spec) => this.runSelfCheck(spec),
-        onSelfCheckRevealed: (spec) => this.onRevealed(spec),
-      });
+    for (const t of techniquesIn(w.id)) {
+      const card = new ConceptCard(t, {
+        onActivate: (s) => this.activate(s.id, false),
+        onRun: (s, p) => void this.run(s, p),
+        onPreview: (s, p) => this.preview(s, p),
+        onHero: (s) => void this.runHero(s),
+        onMine: (s, p) => void this.runMine(s, p),
+        onExport: (s, p) => this.exportCfg(s, p),
+        onParams: (s, p) => this.onParams(s, p),
+        onPickRect: (s, on) => this.pickRect(s, on),
+        onCancel: () => this.cancel(),
+        onPredictRun: (s) => this.runHero(s, s.selfCheck?.preset),
+        onPredictDone: (s) => this.earn(s.id, 'predict'),
+        onRefFile: (s, f) => void this.loadRef(s, f),
+        onColourExample: () => void this.pickSample('cat'),
+      }, [], undefined);
       this.cards.set(t.id, card);
+      card.setStamp(false, false);
       el.appendChild(card.el);
     }
-    this.segEls.set(seg.id, el);
+    this.worlds.set(w.id, el);
     return el;
   }
 
-  private rebuildBeyond(): void {
-    clear(this.beyondSlot);
-    this.beyondSlot.appendChild(Beyond(this.cv ? typeof (this.cv as unknown as Record<string, unknown>).SIFT === 'function' : null));
-  }
-
-  private rebuildCardsAvailability(): void {
-    // Replace each card with one that knows which APIs are missing (FR-14: never silent failure).
+  /** Replace cards whose OpenCV APIs are missing with an "Unavailable" version (never silent failure). */
+  private applyAvailability(): void {
     for (const t of TECHNIQUES) {
+      if (t.explainerOnly) continue;
       const missing = missingApis(t, this.caps);
       if (!missing.length) continue;
       const old = this.cards.get(t.id)!;
-      const params = old.getParams();
-      const card = new TechniqueCard(t, {
-        missingApis: missing,
-        sampleTitle: undefined,
-        onRun: () => undefined,
-        onLoadSample: () => undefined,
-        onExportConfig: (spec, p) => this.exportCfg(spec, p),
-        onSelfCheckRun: async () => false,
-        onSelfCheckRevealed: () => undefined,
-      });
-      card.setParams(params);
+      const card = new ConceptCard(t, (old as unknown as { hooks: ConstructorParameters<typeof ConceptCard>[1] }).hooks, missing);
       old.el.replaceWith(card.el);
       this.cards.set(t.id, card);
     }
-  }
-
-  private setReady(ready: boolean): void {
-    for (const c of this.cards.values()) c.setReady(ready);
   }
 
   private say(msg: string): void {
     this.message.textContent = msg;
   }
 
-  // ---------- image source ----------
-  private setWorking(px: Pixels, meta: ImageMeta, resetBase: boolean): void {
-    this.working = px;
-    this.meta = meta;
-    if (resetBase) this.base = px;
-    this.stage.setPinned(null, '');
-    this.recomputeInputView();
-    this.exact.set('Ready', 'Run a technique to see exactly what was computed, with your numbers filled in.');
-    this.hist.set(this.inputView, null);
-    this.metaLine.textContent = `Working image: ${meta.w}×${meta.h} px (${meta.w * meta.h} pixels), ${meta.source.startsWith('sample:') ? 'synthetic sample' : meta.source === 'chained' ? 'previous result' : 'your upload'}.`;
+  // =========================================================== theme, instructor
+  private initTheme(): void {
+    let saved: string | null = null;
+    try { saved = localStorage.getItem(THEME_KEY); } catch { /* ignore */ }
+    if (saved === 'dark' || saved === 'light') document.documentElement.setAttribute('data-theme', saved);
+    this.topbar.setTheme(this.isDark());
+  }
+  private isDark(): boolean {
+    const t = document.documentElement.getAttribute('data-theme');
+    return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  private toggleTheme(): void {
+    const next = this.isDark() ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem(THEME_KEY, next); } catch { /* ignore */ }
+    this.topbar.setTheme(next === 'dark');
+    this.scope.update(this.stage.getResult() ? this.working : this.working, this.stage.getResult(), this.out, this.currentD0());
+  }
+  private toggleInstructor(): void {
+    this.instructorOn = !this.instructorOn;
+    this.topbar.instructorBtn.setAttribute('aria-pressed', String(this.instructorOn));
+    this.instructorPanel.classList.toggle('hidden', !this.instructorOn);
+    for (const n of this.root.querySelectorAll('[data-instructor]')) n.classList.toggle('hidden', !this.instructorOn);
+    if (this.instructorOn) this.instructorPanel.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
   }
 
-  private loadSample(id: string, announce = true): void {
-    const s = sampleById(id);
-    if (!s) return;
-    const px = s.make();
-    this.setWorking(px, { source: `sample:${id}`, origW: px.w, origH: px.h, w: px.w, h: px.h, resized: false, limit: MAX_SIDE }, true);
-    (this.sampleSelect as HTMLSelectElement).value = id;
-    if (announce) this.say(`Loaded sample "${s.title}". It teaches ${s.teaches}`);
+  // =========================================================== progress and guide
+  private importControl(): HTMLElement {
+    const f = h('input', { type: 'file', id: 'cfg-file', accept: 'application/json,.json' });
+    f.addEventListener('change', () => {
+      const file = (f as HTMLInputElement).files?.[0];
+      (f as HTMLInputElement).value = '';
+      if (!file) return;
+      if (file.size > 64 * 1024) { this.say('Rejected: config files are tiny; this one is over 64 KB.'); return; }
+      void file.text().then((t) => this.importConfigText(t));
+    });
+    return h('div', { class: 'param' }, h('label', { for: 'cfg-file' }, 'Import a shared concept config (.json, parameters only)'), f);
+  }
+
+  private buildGuide(): void {
+    this.refreshGuide();
+  }
+  private nextConcept(): TechniqueSpec | undefined {
+    return TECHNIQUES.find((t) => !this.progress.hasStamp(t.id));
+  }
+  private refreshGuide(): void {
+    clear(this.guide);
+    const next = this.nextConcept();
+    const toggle = h('input', { type: 'checkbox', id: 'guided-toggle', checked: this.guided });
+    toggle.addEventListener('change', () => { this.guided = (toggle as HTMLInputElement).checked; this.refreshGuide(); });
+    this.guide.appendChild(h('div', { class: 'guide' },
+      h('strong', {}, this.guided ? (next ? `Up next: ${next.id} ${next.title}` : 'Every concept has its stamp.') : 'Free browse'),
+      this.guided && next ? h('button', { type: 'button', class: 'btn small primary', onclick: () => this.activate(next.id, true) }, 'Go') : null,
+      h('button', { type: 'button', class: 'btn small', onclick: () => this.map.open() }, 'World map'),
+      h('label', { class: 'inline', for: 'guided-toggle' }, toggle, 'Guided path')));
+  }
+  private refreshProgress(): void {
+    this.topbar.setProgress(this.progress.count(), TECHNIQUES.length);
+    for (const t of TECHNIQUES) {
+      const p = this.progress.part(t.id);
+      this.cards.get(t.id)?.setStamp(p.demo, p.predict);
+    }
+    this.refreshGuide();
+  }
+  private earn(id: string, part: 'demo' | 'predict'): void {
+    const done = this.progress.earn(id, part);
+    const p = this.progress.part(id);
+    this.cards.get(id)?.setStamp(p.demo, p.predict, done);
+    this.topbar.setProgress(this.progress.count(), TECHNIQUES.length);
+    this.refreshGuide();
+    if (done) this.say(`Stamp earned for ${id} ${techniqueById(id)?.title}. ${this.progress.count()} of ${TECHNIQUES.length} so far.`);
+  }
+  private resetProgress(): void {
+    this.progress.reset();
+    this.refreshProgress();
+    this.say('Progress reset. Stamps and challenge results in this browser were cleared.');
+  }
+
+  // =========================================================== navigation
+  private goWorld(id: string): void {
+    const first = techniquesIn(id).find((t) => !this.progress.hasStamp(t.id)) ?? techniquesIn(id)[0];
+    if (first) this.activate(first.id, true);
+  }
+
+  /** Expand a concept, put its hero image on the stage (unless the learner's own image is in use). */
+  private activate(id: string, scroll: boolean): void {
+    const spec = techniqueById(id);
+    if (!spec) return;
+    for (const [cid, c] of this.cards) c.setActive(cid === id);
+    this.activeId = id;
+    const card = this.cards.get(id)!;
+    this.scope.setPreferred(spec);
+    this.shelf.setConcept(spec);
+    this.stage.setPickRect(false, null);
+    this.stage.setCorners(null);
+    card.setPickRectOn(false);
+    if (spec.explainerOnly) this.earn(id, 'demo');
+    const finish = () => {
+      if (spec.needs === 'color' && this.working) card.setColourNeeded(isGrayPixels(this.working));
+      if (spec.pickCorners) this.stage.setCorners(this.cornersOf(spec, card.getParams()));
+      this.refreshKernel();
+      this.refreshSE();
+      this.scope.update(this.working, this.stage.getResult(), this.out, this.currentD0());
+    };
+    if (!this.mine && !spec.explainerOnly && this.src?.id !== spec.heroImage) void this.pickSample(spec.heroImage, false).then(finish);
+    else finish();
+    if (scroll) card.el.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  // =========================================================== images
+  private async pickSample(rawId: string, announce = true): Promise<void> {
+    const id = normalizeSampleId(rawId);
+    const ref = refById(id);
+    if (!ref) return;
+    const px = await loadSamplePixels(id);
+    this.mine = false;
+    this.setSource({ id, title: ref.title, base: px, origW: px.w, origH: px.h, resized: false });
+    if (announce) this.say(`${ref.title}: ${ref.teaches}`);
+  }
+
+  private setSource(s: Source): void {
+    this.src = s;
+    this.working = s.base;
+    this.history = [];
+    this.out = null;
+    this.dirty = false;
+    this.stage.setOriginal(s.base, `${s.title}, ${s.base.w}×${s.base.h}`);
+    this.stage.setPinned(null, '');
+    this.stage.setResult(null, '');
+    this.stage.setPipeline(s.title, []);
+    this.shelf.setActive(s.id, this.mine);
+    this.exact.set('Ready', 'Run a concept to see exactly what was computed, with your numbers filled in.');
+    this.steps.set(undefined);
+    this.scope.update(s.base, null, null, null);
+    this.setChallenge(null);
+    const spec = this.activeId ? techniqueById(this.activeId) : null;
+    if (spec?.needs === 'color') this.cards.get(spec.id)?.setColourNeeded(isGrayPixels(s.base));
+    for (const c of this.cards.values()) c.setColourNeeded(false);
+    if (spec?.needs === 'color') this.cards.get(spec.id)?.setColourNeeded(isGrayPixels(s.base));
+    if (spec?.pickCorners) this.stage.setCorners(this.cornersOf(spec, this.cards.get(spec.id)!.getParams()));
   }
 
   private async loadUpload(file: File): Promise<void> {
-    if (!this.cv) {
-      this.say('Please wait for OpenCV.js to finish loading, then upload again.');
-      return;
-    }
+    if (!this.cv) { this.say('Please wait for OpenCV.js to finish loading, then upload again.'); return; }
     const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
     const v = validateUpload(file.size, file.type, head);
-    if (!v.ok) {
-      this.say(`Rejected: ${v.reason}`);
-      return;
-    }
+    if (!v.ok) { this.say(`Rejected: ${v.reason}`); return; }
     let bmp: ImageBitmap;
-    try {
-      bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    } catch {
-      this.say('Rejected: this file could not be decoded as an image.');
-      return;
-    }
+    try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch { this.say('Rejected: this file could not be decoded as an image.'); return; }
     const cv = this.cv;
     try {
-      if (bmp.width * bmp.height > 40_000_000) {
-        this.say(`Rejected: ${bmp.width}×${bmp.height} is too many pixels to decode safely (limit 40 megapixels).`);
-        return;
-      }
+      if (bmp.width * bmp.height > 40_000_000) { this.say(`Rejected: ${bmp.width}×${bmp.height} is too many pixels to decode safely (limit 40 megapixels).`); return; }
       const c = document.createElement('canvas');
-      c.width = bmp.width;
-      c.height = bmp.height;
+      c.width = bmp.width; c.height = bmp.height;
       const ctx = c.getContext('2d', { willReadFrequently: true })!;
       ctx.drawImage(bmp, 0, 0);
       const full = ctx.getImageData(0, 0, c.width, c.height);
       const plan = planResize(bmp.width, bmp.height, MAX_SIDE);
       let px: Pixels = { w: full.width, h: full.height, data: full.data };
       if (plan.resized) {
+        const big = px;
         px = withMats((track) => {
-          const src = track(pixelsToMat(cv, px));
-          const dst = track(new cv.Mat());
-          cv.resize(src, dst, new cv.Size(plan.w, plan.h), 0, 0, cv.INTER_AREA);
-          return matToPixels(cv, dst);
+          const s = track(pixelsToMat(cv, big));
+          const d = track(new cv.Mat());
+          cv.resize(s, d, new cv.Size(plan.w, plan.h), 0, 0, cv.INTER_AREA);
+          return matToPixels(cv, d);
         });
       }
-      this.setWorking(px, { source: 'upload', origW: bmp.width, origH: bmp.height, w: px.w, h: px.h, resized: plan.resized, limit: MAX_SIDE }, true);
+      this.upload = { id: null, title: 'Your image', base: px, origW: bmp.width, origH: bmp.height, resized: plan.resized };
+      this.mine = true;
+      this.setSource(this.upload);
+      this.shelf.setCheckup(suggest(checkupStats(px)));
       this.say(plan.resized ? `Decoded ${bmp.width}×${bmp.height}; resized to ${px.w}×${px.h} (INTER_AREA) because the longest side is limited to ${MAX_SIDE} px.` : `Decoded ${bmp.width}×${bmp.height}; no resize needed.`);
-    } finally {
-      bmp.close();
-    }
+      if (this.pendingMine) {
+        const { spec, params } = this.pendingMine;
+        this.pendingMine = null;
+        void this.run(spec, params);
+      }
+    } finally { bmp.close(); }
   }
 
-  private recomputeInputView(): void {
-    if (!this.working) return;
-    if (!this.cv) {
-      this.inputView = this.working;
-    } else {
-      const cv = this.cv;
-      const w = this.working;
-      this.inputView = withMats((track) => {
-        const rgba = track(pixelsToMat(cv, w));
-        const inp = track(prepareInput(cv, rgba, this.gray));
-        return matToPixels(cv, inp);
-      });
-    }
-    this.stage.setInput(this.inputView, `${this.gray ? 'gray' : 'RGB'} ${this.inputView.w}×${this.inputView.h}`);
-    this.hist.set(this.inputView, null);
+  private async loadRef(spec: TechniqueSpec, file: File): Promise<void> {
+    const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    const v = validateUpload(file.size, file.type, head);
+    if (!v.ok) { this.say(`Rejected: ${v.reason}`); return; }
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const s = Math.min(1, 512 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+    const ctx = c.getContext('2d', { willReadFrequently: true })!;
+    ctx.drawImage(bmp, 0, 0, c.width, c.height);
+    bmp.close();
+    const d = ctx.getImageData(0, 0, c.width, c.height);
+    this.refUpload = { w: d.width, h: d.height, data: d.data };
+    this.cards.get(spec.id)?.setParams({ ref: 'upload' });
+    this.say('Reference image loaded (stays on your computer). Press Run.');
   }
 
   private resetImage(): void {
-    if (!this.base) return;
-    const m = this.meta;
-    this.setWorking(this.base, { ...(m as ImageMeta), source: m?.source === 'chained' ? 'upload' : (m?.source ?? 'upload'), w: this.base.w, h: this.base.h }, false);
+    if (!this.src) return;
+    this.working = this.src.base;
+    this.history = [];
+    this.out = null;
+    this.stage.setOriginal(this.src.base, `${this.src.title}, ${this.src.base.w}×${this.src.base.h}`);
+    this.stage.setPipeline(this.src.title, []);
+    this.steps.set(undefined);
+    this.scope.update(this.src.base, null, null, null);
     this.say('Reset to the original image.');
   }
 
-  // ---------- running ----------
-  private async run(spec: TechniqueSpec, params: Params, quiet = false): Promise<boolean> {
-    if (!this.cv || !this.working || !this.meta) return false;
+  // =========================================================== pipeline
+  private stepLabel(spec: TechniqueSpec, params: Params): string {
+    const shown = spec.params.filter((p) => !p.hidden && p.key !== 'seed').slice(0, 2).map((p) => `${p.key} ${String(params[p.key])}`);
+    return `${spec.title}${shown.length ? ` (${shown.join(', ')})` : ''}`;
+  }
+  private chain(extra?: { spec: TechniqueSpec; params: Params }): void {
+    const r = this.stage.getResult();
+    const spec = extra?.spec ?? techniqueById(this.out ? this.lastSpecId : '');
+    if (!r || !this.working || !spec) return;
+    this.history.push({ label: this.stepLabel(spec, extra?.params ?? this.lastParams), before: this.working, id: spec.id });
+    this.working = r;
+    this.out = null;
+    this.stage.setOriginal(r, `${this.src?.title ?? 'image'} after ${this.history.length} step(s), ${r.w}×${r.h}`);
+    this.stage.setPipeline(this.src?.title ?? 'image', this.history.map((s) => ({ label: s.label })));
+    this.steps.set(undefined);
+    this.scope.update(r, null, null, null);
+    this.say('The result is now the working image, so you can chain operations. Use ✕ on a step in the pipeline strip to undo it.');
+  }
+  private undo(i: number): void {
+    const step = this.history[i];
+    if (!step) return;
+    this.working = step.before;
+    this.history = this.history.slice(0, i);
+    this.out = null;
+    this.stage.setOriginal(step.before, `${this.src?.title ?? 'image'}${this.history.length ? ` after ${this.history.length} step(s)` : ''}, ${step.before.w}×${step.before.h}`);
+    this.stage.setPipeline(this.src?.title ?? 'image', this.history.map((s) => ({ label: s.label })));
+    this.steps.set(undefined);
+    this.scope.update(step.before, null, null, null);
+    this.say('Step undone.');
+  }
+  private pin(): void {
+    const r = this.stage.getResult();
+    if (!r) return;
+    this.stage.setPinned(r, `${this.lastSpecId} ${this.lastParams ? '' : ''}result`);
+    this.say('Pinned. Run something else, then open the Side by side or Diff view to compare against the pinned result.');
+  }
+
+  // =========================================================== running
+  private lastSpecId = '';
+  private lastParams: Params = {};
+
+  private reference(): Pixels | undefined {
+    if (!this.src || !this.working) return undefined;
+    const bundledPhoto = !!this.src.id && !!imageById(this.src.id);
+    return bundledPhoto && this.src.base.w === this.working.w && this.src.base.h === this.working.h ? this.src.base : undefined;
+  }
+
+  private meta(): ImageMeta {
+    const s = this.src!, w = this.working!;
+    return { source: this.history.length ? 'chained' : s.id ? `sample:${s.id}` : 'upload', origW: s.origW, origH: s.origH, w: w.w, h: w.h, resized: s.resized, limit: MAX_SIDE };
+  }
+
+  private async refPixelsFor(spec: TechniqueSpec, params: Params) {
+    if (!spec.needsRef) return undefined;
+    const ref = String(params.ref);
+    if (ref === 'upload') {
+      if (!this.refUpload) throw new Error('Upload a reference image first, or choose a bundled one.');
+      return this.refUpload;
+    }
+    return loadSamplePixels(ref);
+  }
+
+  private async run(spec: TechniqueSpec, params: Params, opts: { quiet?: boolean } = {}): Promise<boolean> {
+    if (!this.cv || !this.working || !this.src) return false;
     if (this.busy) return false;
-    this.busy = true;
     const card = this.cards.get(spec.id);
-    card?.setBusy(true);
-    if (!quiet) this.exact.setStatus(`Running ${spec.id}…`);
+    if (spec.needs === 'color' && isGrayPixels(this.working)) {
+      card?.setColourNeeded(true);
+      this.exact.error('This concept needs a colour image. Choose a colour example from the shelf.');
+      return false;
+    }
+    card?.setColourNeeded(false);
+    this.busy = true;
+    const heavy = !!spec.heavy && (spec.id !== 'S04' || Number(params.d) > 9 || this.working.w * this.working.h > 512 * 512) && HeavyRunner.available();
+    card?.setBusy(true, heavy);
+    this.stage.setBusy(true, `Running ${spec.id}…`, heavy);
     await nextFrame();
-    const cv = this.cv;
     try {
-      const t0 = performance.now();
-      const meta = this.meta;
-      const out = withMats((track) => {
-        const rgba = track(pixelsToMat(cv, this.working!));
-        const input = track(prepareInput(cv, rgba, this.gray));
-        const res = spec.run({ cv, rgba, input, grayMode: this.gray, params, meta });
-        track(res.mat);
-        return { px: matToPixels(cv, res.mat), vars: res.vars, warnings: res.warnings ?? [], domain: input.channels() === 1 ? 'uint8 gray' : 'uint8 RGB' };
-      });
-      const ms = Math.round(performance.now() - t0);
-      const vars = { domain: out.domain, ...out.vars };
-      const exact = fillTemplate(spec.exactTemplate, vars, params);
-      this.stage.setResult(out.px, `${spec.id} ${spec.title}, ${out.px.w}×${out.px.h}`);
-      this.hist.set(this.inputView, out.px);
-      this.exact.set(`${spec.id} ${spec.title}`, exact, out.warnings, ms);
-      this.dirty = true;
+      const req: RunRequest = { id: spec.id, params, working: this.working, meta: this.meta(), imageId: this.src.id ?? undefined, reference: this.reference(), refPixels: await this.refPixelsFor(spec, params), pipeline: this.history.map((s) => s.id) };
+      const out = heavy ? await this.heavy.run(structuredClone(req), new URL(`${import.meta.env.BASE_URL}opencv/opencv.js`, location.href).href) : executeRun(this.cv, req);
+      this.showResult(spec, params, out);
+      this.lastSpecId = spec.id;
+      this.lastParams = params;
       return true;
     } catch (e) {
-      this.exact.error(`${spec.id} failed (${(e as Error)?.message ?? String(e)}). Try smaller parameters or a smaller image.`);
+      const m = (e as Error)?.message ?? String(e);
+      if (m === 'Cancelled') this.exact.setStatus('Cancelled.');
+      else {
+        if (/colour image/.test(m)) card?.setColourNeeded(true);
+        this.exact.error(`${spec.id} failed (${m}). Try other parameters or a smaller image.`);
+      }
       return false;
     } finally {
       this.busy = false;
       card?.setBusy(false);
+      this.stage.setBusy(false);
+      void opts;
     }
   }
 
-  private async runSelfCheck(spec: TechniqueSpec): Promise<boolean> {
-    const sc = spec.selfCheck;
-    if (!sc) return false;
-    if (sc.preset.sample) this.loadSample(sc.preset.sample, false);
+  private showResult(spec: TechniqueSpec, params: Params, out: RunOutput): void {
+    this.out = out;
+    this.stage.setResult(out.pixels, `${spec.id} ${spec.title}, ${out.pixels.w}×${out.pixels.h}`, out.overlay, out.summary);
+    this.scope.update(this.working, out.pixels, out, this.currentD0());
+    this.exact.set(`${spec.id} ${spec.title}`, out.exact, [...out.adapt, ...out.warnings], out.ms);
+    this.steps.set(out.intermediates);
+    this.dirty = true;
+    this.lastSpecId = spec.id;
+    this.lastParams = params;
+    this.evaluateChallenge(spec, out);
+    this.refreshKernel();
+    this.refreshSE();
+    this.shelf.setActive(this.src?.id ?? null, this.mine);
+  }
+
+  /** Cheap low-resolution run for live preview (light point operations). */
+  private preview(spec: TechniqueSpec, params: Params): void {
+    if (!this.cv || !this.working || this.busy) return;
+    const small = downscaleTo(this.working, 384);
+    try {
+      const out = executeRun(this.cv, { id: spec.id, params, working: small, meta: { ...this.meta(), w: small.w, h: small.h }, pipeline: [] });
+      this.stage.setResult(out.pixels, `${spec.id} live preview (reduced size)`, undefined, '');
+      this.scope.update(this.working, out.pixels, out, null);
+      this.exact.set(`${spec.id} ${spec.title} (preview)`, out.exact, out.warnings, out.ms);
+    } catch { /* the full run on release reports errors */ }
+  }
+
+  private async runHero(spec: TechniqueSpec, preset?: { sample?: string; params: Params }): Promise<boolean> {
+    if (!this.cv) return false;
+    if (this.busy) return false;
+    const card = this.cards.get(spec.id)!;
+    const image = preset?.sample ?? spec.heroImage;
+    await this.pickSample(image, false);
+    this.mine = false;
+    const params = { ...heroParamsOf(spec), ...(preset?.params ?? {}) };
+    card.setParams(params);
+    this.setActiveNoLoad(spec.id);
+    // Chain the hero pipeline (e.g. add noise first), exactly as a learner would.
+    for (const step of preset ? [] : (spec.heroPipeline ?? [])) {
+      const s = techniqueById(step.id)!;
+      const p = { ...defaultParams(s), ...step.params };
+      const ok = await this.run(s, p);
+      if (!ok) return false;
+      this.chain({ spec: s, params: p });
+    }
+    const ok = await this.run(spec, params);
+    if (ok) {
+      this.earn(spec.id, 'demo');
+      this.say(`${spec.id}: ${spec.question} Drag the divider, and hover the image to read the pixels.`);
+    }
+    return ok;
+  }
+
+  private setActiveNoLoad(id: string): void {
+    for (const [cid, c] of this.cards) c.setActive(cid === id);
+    this.activeId = id;
+    this.scope.setPreferred(techniqueById(id) ?? null);
+    this.shelf.setConcept(techniqueById(id) ?? null);
+  }
+
+  private async runMine(spec: TechniqueSpec, params: Params): Promise<void> {
+    if (!this.upload) {
+      this.pendingMine = { spec, params };
+      this.say('Choose an image to use. The concept will run on it as soon as it loads.');
+      this.root.querySelector<HTMLInputElement>('#stage-file')?.click();
+      return;
+    }
+    this.mine = true;
+    if (this.src !== this.upload) this.setSource(this.upload);
+    this.setActiveNoLoad(spec.id);
+    await this.run(spec, params);
+  }
+
+  private cancel(): void {
+    this.heavy.cancel();
+    this.busy = false;
+    this.stage.setBusy(false);
+    for (const c of this.cards.values()) c.setBusy(false);
+    this.exact.setStatus('Cancelled.');
+  }
+
+  // =========================================================== challenges
+  private setChallenge(spec: TechniqueSpec | null, view?: Parameters<ChallengeBadge['set']>[0]): void {
+    for (const c of this.cards.values()) if (c.challenge && view && spec && c.spec.id === spec.id) c.challenge.set(view);
+  }
+  private evaluateChallenge(spec: TechniqueSpec, out: RunOutput): void {
+    const ch = spec.challenge;
+    if (!ch) return;
     const card = this.cards.get(spec.id);
-    const params = { ...defaultParams(spec), ...sc.preset.params };
-    card?.setParams(params);
-    return this.run(spec, params);
+    if (this.src?.id !== ch.imageId) { card?.challenge?.set({ kind: 'unavailable', prompt: ch.prompt, why: `This challenge runs on the bundled "${ch.imageId}" image only, because it needs a known reference.` }); return; }
+    const missing = (ch.requires ?? []).filter((r) => !this.history.some((h2) => h2.id === r));
+    if (missing.length) { card?.challenge?.set({ kind: 'unavailable', prompt: ch.prompt, why: `Add the step ${missing.join(', ')} first (use "Use result as input"), then run this concept.` }); return; }
+    const m = out.metrics ?? {};
+    const value = m[ch.key];
+    if (value === undefined) { card?.challenge?.set({ kind: 'unavailable', prompt: ch.prompt, why: 'No measurement for this run.' }); return; }
+    const passed = ch.check(m);
+    this.progress.recordChallenge(spec.id, passed, value);
+    card?.challenge?.set({ kind: 'result', prompt: ch.prompt, passed, value, metric: ch.metric });
   }
 
-  private onRevealed(spec: TechniqueSpec): void {
-    const seg = spec.segment;
-    const all = techniquesIn(seg).filter((t) => t.selfCheck);
-    if (all.every((t) => this.cards.get(t.id)?.selfCheck?.revealed)) {
-      this.progress.add(seg);
-      saveProgress(this.progress);
-      this.refreshProgress();
-      this.say(`Segment "${SEGMENTS.find((s) => s.id === seg)?.title}" completed. Use "Next concept" to continue.`);
-    }
+  // =========================================================== stage interactions
+  private pickRect(spec: TechniqueSpec, on: boolean): void {
+    const p = this.cards.get(spec.id)!.getParams();
+    this.stage.setPickRect(on, { x: Number(p.tx), y: Number(p.ty), w: Number(p.tw), h: Number(p.th) });
+  }
+  private onRect(r: { x: number; y: number; w: number; h: number }): void {
+    const spec = techniqueById(this.activeId ?? '');
+    if (!spec?.pickRect) return;
+    this.cards.get(spec.id)!.setParams({ tx: r.x, ty: r.y, tw: Math.min(200, r.w), th: Math.min(200, r.h) });
+    void this.run(spec, this.cards.get(spec.id)!.getParams());
+  }
+  private cornersOf(spec: TechniqueSpec, p: Params): [number, number][] {
+    void spec;
+    return [0, 1, 2, 3].map((i) => [Number(p[`x${i}`]), Number(p[`y${i}`])] as [number, number]);
+  }
+  private onCorners(c: [number, number][]): void {
+    const spec = techniqueById(this.activeId ?? '');
+    if (!spec?.pickCorners) return;
+    const p: Params = {};
+    c.forEach(([x, y], i) => { p[`x${i}`] = x; p[`y${i}`] = y; });
+    this.cards.get(spec.id)!.setParams(p);
+    void this.run(spec, this.cards.get(spec.id)!.getParams());
+  }
+  private currentD0(): number | null {
+    const spec = techniqueById(this.activeId ?? '');
+    if (!spec?.params.some((p) => p.key === 'd0')) return null;
+    return Number(this.cards.get(spec.id)?.getParams().d0);
+  }
+  private onCutoff(d0: number): void {
+    const spec = techniqueById(this.activeId ?? '');
+    if (!spec || !spec.params.some((p) => p.key === 'd0')) return;
+    this.cards.get(spec.id)!.setParams({ d0 });
+    void this.run(spec, this.cards.get(spec.id)!.getParams());
+  }
+  private onParams(spec: TechniqueSpec, params: Params): void {
+    if (spec.id !== this.activeId) return;
+    if (spec.pickRect) this.stage.setPickRect(this.stage.getView() === 'overlay' && false, { x: Number(params.tx), y: Number(params.ty), w: Number(params.tw), h: Number(params.th) });
+    clearTimeout(this.timers.get('k'));
+    this.timers.set('k', window.setTimeout(() => { this.refreshKernel(); this.refreshSE(); }, 120));
+  }
+  private refreshKernel(): void {
+    const spec = techniqueById(this.activeId ?? '');
+    const card = spec ? this.cards.get(spec.id) : null;
+    if (!spec || !card || spec.explainer !== 'kernel') return;
+    let kg = this.kernels.get(spec.id);
+    if (!kg) { kg = new KernelGrid(); this.kernels.set(spec.id, kg); card.explainerSlot.appendChild(kg.el); }
+    kg.update(spec.id, card.getParams(), (r) => this.stage.inspector.neighbourhood(r), this.stage.inspector.resultValue());
+  }
+  private refreshSE(): void {
+    const spec = techniqueById(this.activeId ?? '');
+    const card = spec ? this.cards.get(spec.id) : null;
+    if (!spec || !card || spec.explainer !== 'structuring' || !this.working) return;
+    if (!card.explainerSlot.contains(this.se.el)) card.explainerSlot.appendChild(this.se.el);
+    const pos = this.stage.inspector.pos;
+    this.se.update(card.getParams(), this.working, pos.x || Math.floor(this.working.w / 2), pos.y || Math.floor(this.working.h / 2));
   }
 
-  // ---------- stage actions ----------
-  private pin(): void {
-    const r = this.stage.getResult();
-    if (!r) return;
-    this.stage.setPinned(r, this.stageCaption());
-    this.say('Pinned. Run another technique or preset, then choose "Pinned" in the Diff selector to compare them.');
-  }
-
-  private stageCaption(): string {
-    const t = this.exact.el.querySelector('.exact-text')?.textContent ?? '';
-    return t.split(' — ')[0] || 'result';
-  }
-
-  private useResultAsInput(): void {
-    const r = this.stage.getResult();
-    if (!r || !this.meta) return;
-    this.setWorking(r, { ...this.meta, w: r.w, h: r.h, source: 'chained' }, false);
-    this.say('The result is now the working image, so you can chain operations (for example noise, then median). Use "Reset to original image" to start over.');
-  }
-
+  // =========================================================== export / import
   private exportPng(): void {
     const r = this.stage.getResult();
     if (!r) return;
     const c = document.createElement('canvas');
-    c.width = r.w;
-    c.height = r.h;
+    c.width = r.w; c.height = r.h;
     c.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(r.data), r.w, r.h), 0, 0);
-    c.toBlob((b) => {
-      if (b) {
-        download(b, 'dip-lab-result.png');
-        this.dirty = false;
-        this.say('Result PNG saved to your downloads. It was created locally.');
-      }
-    }, 'image/png');
+    c.toBlob((b) => { if (b) { download(b, 'dip-lab-result.png'); this.dirty = false; this.say('Result PNG saved to your downloads. It was created locally.'); } }, 'image/png');
   }
-
   private exportCfg(spec: TechniqueSpec, params: Params): void {
-    const sample = this.meta?.source.startsWith('sample:') ? this.meta.source.slice(7) : undefined;
-    const text = JSON.stringify(exportConfig(spec.id, params, sample), null, 2);
-    download(new Blob([text], { type: 'application/json' }), `dip-lab-${spec.id}.json`);
+    const sample = this.src?.id && ALL_SAMPLE_IDS.includes(this.src.id) ? this.src.id : undefined;
+    download(new Blob([JSON.stringify(exportConfig(spec.id, params, sample), null, 2)], { type: 'application/json' }), `dip-lab-${spec.id}.json`);
     this.say(`Config for ${spec.id} saved. It contains parameters only, never image data.`);
   }
-
-  private async importConfigFile(f: File): Promise<void> {
-    if (f.size > 64 * 1024) {
-      this.say('Rejected: config files are tiny; this one is over 64 KB.');
-      return;
-    }
-    const r = importConfig(await f.text(), TECHNIQUES, SAMPLE_IDS);
-    if (!r.ok) {
-      this.say(`Could not import: ${r.reason}`);
-      return;
-    }
-    if (r.sample) this.loadSample(r.sample, false);
-    const card = this.cards.get(r.technique);
-    card?.setParams(r.params);
-    document.getElementById(`tech-${r.technique}`)?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
-    card?.focusRun();
-    this.say(`Imported ${r.technique} parameters${r.sample ? ` and loaded sample "${r.sample}"` : ''}. Press Run.`);
-  }
-
-  // ---------- guided path ----------
-  private refreshProgress(): void {
-    const guided = this.toc.isGuided();
-    this.toc.render(this.progress, this.currentSeg);
-    const firstOpen = SEGMENTS.filter((s) => s.id !== 'beyond').find((s) => !this.progress.has(s.id));
-    for (const s of SEGMENTS) {
-      const el = this.segEls.get(s.id);
-      if (!el) continue;
-      const done = this.progress.has(s.id);
-      el.classList.toggle('is-next', guided && firstOpen?.id === s.id);
-      el.classList.toggle('is-done', done);
-      const st = el.querySelector('.seg-status');
-      if (st) st.textContent = done ? '✓ done' : guided && firstOpen?.id === s.id ? 'Up next' : '';
-    }
-  }
-
-  private nextConcept(): void {
-    const i = SEGMENTS.findIndex((s) => s.id === this.currentSeg);
-    const next = SEGMENTS[Math.min(SEGMENTS.length - 1, i + 1)];
-    const el = this.segEls.get(next.id);
-    el?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
-    el?.querySelector<HTMLElement>('h2')?.focus?.();
-  }
-
-  private observeSegments(): void {
-    if (typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        const vis = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (vis) {
-          this.currentSeg = vis.target.id.replace('seg-', '');
-          this.toc.render(this.progress, this.currentSeg);
-        }
-      },
-      { rootMargin: '-20% 0px -60% 0px' },
-    );
-    for (const el of this.segEls.values()) io.observe(el);
-  }
-
-  private toggleInstructor(): void {
-    this.instructorOn = !this.instructorOn;
-    this.instructorBtn.setAttribute('aria-pressed', String(this.instructorOn));
-    this.instructorPanel.classList.toggle('hidden', !this.instructorOn);
-    for (const n of this.root.querySelectorAll('[data-instructor]')) n.classList.toggle('hidden', !this.instructorOn);
-    if (this.instructorOn) this.instructorPanel.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  async importConfigText(text: string): Promise<void> {
+    const r = importConfig(text, TECHNIQUES, ALL_SAMPLE_IDS);
+    if (!r.ok) { this.say(`Could not import: ${r.reason}`); return; }
+    this.activate(r.technique, true);
+    if (r.sample) await this.pickSample(r.sample, false);
+    this.cards.get(r.technique)?.setParams(r.params);
+    this.say(`Imported ${r.technique} parameters${r.sample ? ` and loaded "${r.sample}"` : ''}. Press Run.`);
   }
 }

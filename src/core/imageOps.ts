@@ -52,3 +52,22 @@ export function isGrayPixels(p: Pixels): boolean {
   for (let i = 0; i < p.w * p.h * 4; i += 4) if (p.data[i] !== p.data[i + 1] || p.data[i] !== p.data[i + 2]) return false;
   return true;
 }
+
+/** Box-average downscale so the longest side is at most `maxSide` (live-preview resolution). Pure. */
+export function downscaleTo(p: Pixels, maxSide: number): Pixels {
+  const s = Math.min(1, maxSide / Math.max(p.w, p.h));
+  if (s >= 1) return p;
+  const w = Math.max(1, Math.round(p.w * s)), h = Math.max(1, Math.round(p.h * s));
+  const out = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    const y0 = Math.floor((y * p.h) / h), y1 = Math.max(y0 + 1, Math.floor(((y + 1) * p.h) / h));
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.floor((x * p.w) / w), x1 = Math.max(x0 + 1, Math.floor(((x + 1) * p.w) / w));
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let yy = y0; yy < y1; yy++) for (let xx = x0; xx < x1; xx++) { const o = (yy * p.w + xx) * 4; r += p.data[o]; g += p.data[o + 1]; b += p.data[o + 2]; n++; }
+      const o = (y * w + x) * 4;
+      out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n; out[o + 3] = 255;
+    }
+  }
+  return { w, h, data: out };
+}

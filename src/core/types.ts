@@ -146,6 +146,8 @@ export interface TechniqueSpec {
     requires?: string[];
     /** Text shown with the measured number, e.g. "PSNR (dB)". */
     metric: string;
+    /** Which metric key holds the measured number. */
+    key: string;
   };
   /** SIFT, HOG, active contours: description only, never a fake demo. */
   explainerOnly?: boolean;

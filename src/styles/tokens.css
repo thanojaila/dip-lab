@@ -1,0 +1,83 @@
+/* Playful explorer tokens (v2). Dark theme: [data-theme="dark"] or system preference unless [data-theme="light"]. */
+:root {
+  --bg: #fff8ec;
+  --surface: #ffffff;
+  --surface-2: #f4ecdc;
+  --ink: #1f1b3a;
+  --muted: #5b5873;
+  --primary: #6c4cf1;
+  --on-primary: #ffffff;
+  --coral: #ff6b57;
+  --teal: #0fa89a;
+  --sun: #ffc53d;
+  --plum: #b452d9;
+  --sky: #2d8cf0;
+  --stage: #15131f;
+  --good: #0a7d72;
+  --bad: #b4281c;
+  --radius: 18px;
+  --shadow: 4px 4px 0 var(--ink);
+  --shadow-sm: 2px 2px 0 var(--ink);
+  --focus: #6c4cf1;
+  --hist-a: #6c4cf1;
+  --hist-b: #ff6b57;
+  --font-head: 'Baloo 2', 'Nunito', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+[data-theme='dark'] {
+  --bg: #15131f;
+  --surface: #211e33;
+  --surface-2: #2b2745;
+  --ink: #f4f1ff;
+  --muted: #b4b0cc;
+  --primary: #9b85ff;
+  --on-primary: #15131f;
+  --coral: #ff8a7a;
+  --teal: #3fd6c6;
+  --sun: #ffd466;
+  --plum: #d59bf5;
+  --sky: #7db8ff;
+  --stage: #0c0b12;
+  --good: #3fd6c6;
+  --bad: #ff9b8f;
+  --shadow: 4px 4px 0 #000;
+  --shadow-sm: 2px 2px 0 #000;
+  --focus: #ffd466;
+  --hist-a: #9b85ff;
+  --hist-b: #ffb15c;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #15131f;
+    --surface: #211e33;
+    --surface-2: #2b2745;
+    --ink: #f4f1ff;
+    --muted: #b4b0cc;
+    --primary: #9b85ff;
+    --on-primary: #15131f;
+    --coral: #ff8a7a;
+    --teal: #3fd6c6;
+    --sun: #ffd466;
+    --plum: #d59bf5;
+    --sky: #7db8ff;
+    --stage: #0c0b12;
+    --good: #3fd6c6;
+    --bad: #ff9b8f;
+    --shadow: 4px 4px 0 #000;
+    --shadow-sm: 2px 2px 0 #000;
+    --focus: #ffd466;
+    --hist-a: #9b85ff;
+    --hist-b: #ffb15c;
+    color-scheme: dark;
+  }
+}
+/* World accents (header band, stamp, map node) */
+.accent-primary { --accent: var(--primary); }
+.accent-coral { --accent: var(--coral); }
+.accent-teal { --accent: var(--teal); }
+.accent-sun { --accent: var(--sun); }
+.accent-plum { --accent: var(--plum); }
+.accent-sky { --accent: var(--sky); }
