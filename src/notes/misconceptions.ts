@@ -1,0 +1,23 @@
+/** Misconception callouts (FR-10). Keyed by technique id; each MVP segment has at least one. */
+export const MISCONCEPTIONS: Record<string, string> = {
+  F01: 'Misconception: "bigger image = better analysis". A 12-megapixel photo is just slower; for learning operators, 1024 px is plenty.',
+  F03: 'Misconception: "enlarging adds detail". Interpolation only guesses between existing pixels; it cannot recover real information.',
+  F04: 'Misconception: "fewer levels just looks noisier". Quantisation creates flat bands (false contours), which is a different artifact from noise.',
+  P02: 'Misconception: "adding to uint8 pixels just clips". Plain 8-bit arithmetic in many languages wraps modulo 256 (250 + 10 = 4). Clip must be chosen on purpose.',
+  P05: 'Misconception: "gamma changes the histogram shape only a little". It moves midtones a lot while leaving 0 and 255 fixed, so it is not the same as brightness.',
+  P06: 'Misconception: "Otsu always finds the right threshold". It only optimises two-class separation of the histogram; uneven lighting or three classes break it.',
+  H02: 'Misconception: "equalisation always improves an image". It maximises histogram flatness, not appearance; it can exaggerate noise and make skies look blotchy.',
+  H03: 'Misconception: "CLAHE is just stronger equalisation". It is local and contrast-limited; the limit is what prevents noise explosions.',
+  N02: 'Misconception: "any smoothing removes noise". For salt-and-pepper, averaging smears the outlier into its neighbours; the median ignores it.',
+  S01: 'Misconception: "a bigger blur window is always more accurate". Larger boxes remove more detail than noise past the point of diminishing returns.',
+  S02: 'Misconception: "larger σ is the same as larger kernel". σ sets the weighting; the kernel only needs to be wide enough (≈ 6σ) to hold it.',
+  S03: 'Misconception: "median is just a better blur". It is nonlinear: huge k deletes thin lines and rounds corners, and it is slower.',
+  S04: 'Misconception: "bilateral is magic edge-preserving blur". It preserves only edges whose contrast exceeds σ_color; with a big σ_color it becomes a Gaussian blur.',
+  S05: 'Misconception: "sharpening recovers detail". Unsharp masking only exaggerates contrast at edges; it can create halos and amplify noise.',
+  S06: 'Misconception: "sharpening is free". The Laplacian amplifies high frequencies, and noise lives there; sharpen after denoising.',
+  S08: 'Misconception: "gradient magnitude is the edge map". It is a measure of change; you still need thresholding/thinning (Canny does both) to get edges.',
+  E01: 'Misconception: "Canny has one correct threshold". Low thresholds give clutter; high thresholds give broken contours; the right pair depends on contrast and noise.',
+  M01: 'Misconception: "erosion and dilation are inverses". They are duals but not inverses; erosion then dilation (opening) does not restore what erosion removed.',
+  M02: 'Misconception: "opening and closing do the same thing". Opening removes small bright things; closing fills small dark gaps.',
+  M03: 'Misconception: "the component count is a fact about the image". It is a fact about the image after a chosen threshold and connectivity.',
+};
