@@ -44,7 +44,7 @@ A playful, image-first, **local-only** lab for classical digital image processin
 ```bash
 npm ci
 npm run dev        # http://localhost:5173 (heavy ops run on the main thread in dev)
-npm test           # 280+ tests, including every demo on its real image against the real OpenCV.js
+npm test           # 270+ tests, including every demo on its real image against the real OpenCV.js
 npm run build      # thumbnails + type-check + static build in dist/
 npm run preview    # serve dist/ locally (CSP and Workers active)
 ```
