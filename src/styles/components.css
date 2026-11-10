@@ -100,12 +100,15 @@ legend { font-weight: 700; padding: 0; margin-bottom: 4px; }
 
 /* ---------- stage ---------- */
 .stage { padding: 10px; }
-.stage-tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.stage-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.stage-bar .spacer { flex: 1; }
+.stage-tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .stage-tabs [role='tab'] { font: inherit; font-weight: 700; border: 2px solid var(--ink); border-radius: 999px; padding: 3px 14px; background: var(--surface); color: var(--ink); cursor: pointer; }
 .stage-tabs [role='tab'][aria-selected='true'] { background: var(--primary); color: var(--on-primary); box-shadow: var(--shadow-sm); }
 .stage-tabs .spacer { flex: 1; }
 .stage-view { background: var(--stage); border: 2px solid var(--ink); border-radius: 14px; padding: 6px; outline-offset: 3px; min-height: 160px; }
-.ba { position: relative; width: 100%; background: var(--stage); touch-action: none; user-select: none; }
+.stage-view > canvas { max-height: 52vh; width: auto; max-width: 100%; margin: 0 auto; }
+.ba { position: relative; --ar: 1.33; width: min(100%, calc(var(--stage-h, 52vh) * var(--ar))); aspect-ratio: var(--ar); margin: 0 auto; background: var(--stage); touch-action: none; user-select: none; }
 .ba canvas, .sbs canvas, .ov canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
 .ba canvas { position: absolute; inset: 0; }
 .ba .after { clip-path: inset(0 0 0 50%); }
@@ -116,9 +119,9 @@ legend { font-weight: 700; padding: 0; margin-bottom: 4px; }
 .ba .tag.l { left: 6px; } .ba .tag.r { right: 6px; }
 .sbs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .sbs figure, .sbs > div { margin: 0; }
-.sbs canvas { aspect-ratio: 1; height: auto; }
+.sbs canvas { aspect-ratio: 1; height: auto; max-height: 40vh; }
 .cap { color: #d9d6ee; font-size: 0.8rem; margin: 2px 0 0; overflow-wrap: anywhere; }
-.ov { position: relative; width: 100%; }
+.ov { position: relative; --ar: 1.33; width: min(100%, calc(var(--stage-h, 52vh) * var(--ar))); aspect-ratio: var(--ar); margin: 0 auto; }
 .ov svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .ov svg.interactive { pointer-events: auto; }
 .empty-stage { color: #d9d6ee; padding: 40px 10px; text-align: center; }
@@ -129,7 +132,7 @@ legend { font-weight: 700; padding: 0; margin-bottom: 4px; }
 .stage { position: relative; }
 
 /* ---------- inspector ---------- */
-.inspector { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+.inspector { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; background: var(--surface); border: 2px solid var(--ink); border-radius: var(--radius); padding: 10px 12px; box-shadow: var(--shadow); }
 .inspector h4 { margin: 0 0 2px; }
 .px-grid { border-collapse: collapse; font-family: var(--font-mono); font-size: 0.68rem; width: 100%; table-layout: fixed; }
 .px-grid td { border: 1px solid var(--muted); text-align: center; padding: 2px 0; height: 22px; overflow: hidden; }
@@ -138,7 +141,7 @@ legend { font-weight: 700; padding: 0; margin-bottom: 4px; }
 @media (max-width: 520px) { .inspector { grid-template-columns: 1fr; } }
 
 /* ---------- scope / exact / strips ---------- */
-.scope canvas { width: 100%; height: auto; display: block; border: 2px solid var(--ink); border-radius: 10px; background: var(--surface); }
+.scope canvas { max-width: 100%; max-height: 300px; width: auto; height: auto; display: block; margin: 0 auto; border: 2px solid var(--ink); border-radius: 10px; background: var(--surface); }
 .scope-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
 .scope .summary { font-size: 0.85rem; color: var(--muted); margin: 4px 0 0; }
 .metrics { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
@@ -213,4 +216,3 @@ dialog::backdrop { background: rgba(21, 19, 31, 0.6); }
 
 .shelf-row::-webkit-scrollbar { height: 6px; }
 .shelf-row::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 3px; }
-.stage-tabs .btn { margin-left: auto; }

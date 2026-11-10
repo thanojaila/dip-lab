@@ -83,6 +83,7 @@ export class App {
   private kernels = new Map<string, KernelGrid>();
   private se = new StructuringElementView();
   private guide = h('section', { class: 'panel guide', 'aria-label': 'Guided path' });
+  private rightEl: HTMLElement | null = null;
   private instructorPanel = InstructorPanel();
   private timers = new Map<string, number>();
 
@@ -137,7 +138,7 @@ export class App {
       h('li', {}, 'Commit to a prediction, press "Show me", and drag the divider between Original and Result.'),
       h('li', {}, 'Hover the image to read the actual pixel numbers; read the Exact panel to see precisely what ran.'),
       h('li', {}, 'Upload your own image any time: every concept works on it.')), this.importControl()), this.message, ...worlds, Attribution(() => this.resetProgress()));
-    const right = h('aside', { class: 'col-right', 'aria-label': 'Stage and results' }, this.stage.el, this.scope.el, this.steps.el, this.exact.el, this.shelf.el);
+    const right = (this.rightEl = h('aside', { class: 'col-right', 'aria-label': 'Stage and results' }, this.stage.el, this.scope.el, this.stage.inspector.el, this.exact.el, this.steps.el, this.shelf.el));
     this.root.append(
       h('a', { class: 'skip', href: '#main' }, 'Skip to the lab'),
       this.topbar.el,
@@ -285,6 +286,7 @@ export class App {
     if (!spec) return;
     for (const [cid, c] of this.cards) c.setActive(cid === id);
     this.activeId = id;
+    this.revealStage();
     const card = this.cards.get(id)!;
     this.scope.setPreferred(spec);
     this.shelf.setConcept(spec);
@@ -486,6 +488,7 @@ export class App {
       const req: RunRequest = { id: spec.id, params, working: this.working, meta: this.meta(), imageId: this.src.id ?? undefined, reference: this.reference(), refPixels: await this.refPixelsFor(spec, params), pipeline: this.history.map((s) => s.id) };
       const out = heavy ? await this.heavy.run(structuredClone(req), new URL(`${import.meta.env.BASE_URL}opencv/opencv.js`, location.href).href) : executeRun(this.cv, req);
       this.showResult(spec, params, out);
+      card?.selfCheck?.markRan();
       this.lastSpecId = spec.id;
       this.lastParams = params;
       return true;
@@ -505,8 +508,14 @@ export class App {
     }
   }
 
+  /** Keep the stage in view: the right column scrolls on its own. */
+  private revealStage(): void {
+    if (this.rightEl) this.rightEl.scrollTop = 0;
+  }
+
   private showResult(spec: TechniqueSpec, params: Params, out: RunOutput): void {
     this.out = out;
+    this.revealStage();
     this.stage.setResult(out.pixels, `${spec.id} ${spec.title}, ${out.pixels.w}×${out.pixels.h}`, out.overlay, out.summary);
     this.scope.update(this.working, out.pixels, out, this.currentD0());
     this.exact.set(`${spec.id} ${spec.title}`, out.exact, [...out.adapt, ...out.warnings], out.ms);

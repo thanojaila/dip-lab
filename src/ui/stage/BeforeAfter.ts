@@ -56,6 +56,6 @@ export class BeforeAfter {
     drawPixels(this.after, result ?? original);
     this.tagL.textContent = labelBefore;
     this.tagR.textContent = result ? labelAfter : labelBefore;
-    if (original) this.el.style.aspectRatio = `${original.w} / ${original.h}`;
+    if (original) this.el.style.setProperty('--ar', String(original.w / original.h));
   }
 }

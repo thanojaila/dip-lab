@@ -35,10 +35,10 @@ export class PixelInspector {
     this.el = h(
       'section',
       { class: 'inspector', 'aria-label': 'Pixel inspector' },
-      h('div', { class: 'row', style: undefined }, h('h4', {}, 'Pixel inspector'), h('label', { for: (this.chan as HTMLSelectElement).id, class: 'inline' }, 'Channel'), this.chan),
+      h('div', { class: 'row' }, h('h2', {}, 'Pixel inspector'), h('label', { for: (this.chan as HTMLSelectElement).id, class: 'inline' }, 'Channel'), this.chan),
       this.posEl,
-      h('div', {}, h('h4', {}, 'Original'), this.gridA),
-      h('div', {}, h('h4', {}, 'Result'), this.gridB),
+      h('div', {}, h('h3', {}, 'Original'), this.gridA),
+      h('div', {}, h('h3', {}, 'Result'), this.gridB),
     );
     (this.el.firstElementChild as HTMLElement).style.gridColumn = '1 / -1';
   }
@@ -81,7 +81,7 @@ export class PixelInspector {
         const td = h('td', { class: dx === 0 && dy === 0 ? 'center' : '' }, v === null ? '' : String(v));
         if (v !== null) {
           td.style.background = `rgb(${v},${v},${v})`;
-          td.style.color = v > 128 ? '#000' : '#fff';
+          td.style.color = v > 117 ? '#000' : '#fff';
         }
         tr.appendChild(td);
       }

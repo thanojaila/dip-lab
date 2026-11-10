@@ -66,17 +66,18 @@ export class Stage {
       tablist.appendChild(b);
     }
     this.cancelBtn = h('button', { type: 'button', class: 'btn small hidden', onclick: hooks.onCancel }, 'Cancel');
-    tablist.appendChild(h('span', { class: 'spacer' }));
+    const bar = h('div', { class: 'stage-bar' }, tablist);
     const fileIn = h('input', { type: 'file', id: 'stage-file', accept: 'image/png,image/jpeg,image/webp', class: 'sr-only', 'aria-label': 'Upload your own image' });
     fileIn.addEventListener('change', () => {
       const f = (fileIn as HTMLInputElement).files?.[0];
       (fileIn as HTMLInputElement).value = '';
       if (f) hooks.onFile(f);
     });
-    tablist.appendChild(this.busyEl);
-    tablist.appendChild(fileIn);
-    tablist.appendChild(h('button', { type: 'button', class: 'btn small', onclick: () => (fileIn as HTMLInputElement).click() }, '+ Upload your image'));
-    tablist.appendChild(this.cancelBtn);
+    bar.appendChild(h('span', { class: 'spacer' }));
+    bar.appendChild(this.busyEl);
+    bar.appendChild(fileIn);
+    bar.appendChild(h('button', { type: 'button', class: 'btn small upload-btn', onclick: () => (fileIn as HTMLInputElement).click() }, '+ Upload your image'));
+    bar.appendChild(this.cancelBtn);
     this.pinBtn = h('button', { type: 'button', class: 'btn small', onclick: hooks.onPin }, 'Pin result');
     this.useBtn = h('button', { type: 'button', class: 'btn small', onclick: hooks.onUseAsInput }, 'Use result as input');
     this.pngBtn = h('button', { type: 'button', class: 'btn small', onclick: hooks.onExportPng }, 'Export PNG');
@@ -84,12 +85,11 @@ export class Stage {
     this.el = h(
       'section',
       { class: 'panel stage', 'aria-label': 'Stage' },
-      tablist,
+      bar,
       this.body,
       this.pipeline.el,
       h('div', { class: 'stage-actions' }, this.pinBtn, this.useBtn, this.pngBtn, h('button', { type: 'button', class: 'btn small', onclick: hooks.onResetImage }, 'Reset image')),
       this.live,
-      this.inspector.el,
       h('div', { class: 'drop-hint', 'aria-hidden': 'true' }, 'Drop an image to use it'),
     );
     this.body.addEventListener('keydown', (e) => {
@@ -347,7 +347,7 @@ export class Stage {
       });
     }
     const wrap = h('div', { class: 'ov' }, c, svg);
-    wrap.style.aspectRatio = `${o.w} / ${o.h}`;
+    wrap.style.setProperty('--ar', String(o.w / o.h));
     return h('div', {}, wrap, h('p', { class: 'cap' }, this.overlay ? this.overlaySummary || 'Shapes drawn over the original.' : this.pickRect ? 'Drag on the image to draw the template rectangle.' : this.corners ? 'Drag the numbered corners (or focus one and use the arrow keys).' : 'This concept draws nothing over the image.'));
   }
 }

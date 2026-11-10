@@ -43,6 +43,12 @@ export class SelfCheck {
     this.update();
   }
 
+  /** The concept has been run (from anywhere), so the answer can be revealed once a prediction is chosen. */
+  markRan(): void {
+    this.ran = true;
+    this.update();
+  }
+
   private update(): void {
     if (this.runBtn) this.runBtn.disabled = this.chosen < 0;
     this.revealBtn.disabled = !this.ran || this.chosen < 0;
