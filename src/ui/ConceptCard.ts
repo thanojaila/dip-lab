@@ -107,6 +107,7 @@ export class ConceptCard {
       refInput,
       spec.explainerOnly ? null : h('div', { class: 'row' }, this.runBtn, this.heroBtn, this.mineBtn, resetBtn, cfgBtn, this.pickBtn, this.live ? h('label', { class: 'inline', for: this.live.id }, this.live, 'Live preview') : null, this.cancelBtn),
       this.explainerSlot,
+      this.colabSection(),
       h('details', { class: 'notes', open: true }, h('summary', {}, 'What the parameters do'), h('ul', {}, ...spec.effectNotes.map((n) => h('li', {}, n)))),
       spec.misconception ? h('p', { class: 'watch', role: 'note' }, spec.misconception) : null,
       this.challenge?.el ?? null,
@@ -123,6 +124,34 @@ export class ConceptCard {
   }
 
   private hiddenParams = new Map<string, ParamValue>();
+
+  /** "Colab code" panel: the course notebook cell(s) behind this concept, verbatim, with copy buttons. */
+  private colabSection(): HTMLElement | null {
+    const snippets = this.spec.colab;
+    if (!snippets?.length) return null;
+    return h(
+      'details',
+      { class: 'notes colab' },
+      h('summary', {}, 'Colab code (paste into a notebook)'),
+      ...snippets.map((s) => {
+        const copy = h('button', { type: 'button', class: 'btn' }, 'Copy') as HTMLButtonElement;
+        copy.addEventListener('click', () => {
+          void navigator.clipboard?.writeText(s.code).then(() => {
+            copy.textContent = 'Copied';
+            setTimeout(() => (copy.textContent = 'Copy'), 1500);
+          }).catch(() => undefined);
+        });
+        return h(
+          'div',
+          { class: 'colab-cell' },
+          h('p', { class: 'hint' }, `${s.notebook} — ${s.cell}`),
+          h('pre', { class: 'colab-code', tabindex: '0' }, h('code', {}, s.code)),
+          s.note ? h('p', { class: 'hint' }, s.note) : null,
+          copy,
+        );
+      }),
+    );
+  }
 
   private paramRow(p: ParamSpec): HTMLElement {
     const id = nextId('p');

@@ -62,3 +62,13 @@ npm run preview    # serve dist/ locally (CSP and Workers active)
 ## Licenses
 
 App code: MIT. OpenCV.js: Apache-2.0. Fonts (Baloo 2, Nunito, JetBrains Mono): SIL OFL 1.1 via Fontsource. Images: see the attribution page and `public/samples/ATTRIBUTION.md`. No course PDFs, notebooks or images are included. See `THIRD_PARTY_NOTICES.md`.
+
+## Deploy to GitHub Pages
+
+The build is fully static and uses relative paths (`base: './'`), so it works from any sub-path such as `https://<user>.github.io/<repo>/`. OpenCV.js, fonts and the sample photos are all bundled; nothing is fetched from the internet.
+
+1. Push this folder to a GitHub repo whose default branch is `main`.
+2. In the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. Push to `main` (or run the workflow manually). `.github/workflows/pages.yml` runs the tests, builds, and publishes `dist/`.
+
+To host elsewhere or test locally: `npm run build`, then serve the `dist/` folder with any static server.

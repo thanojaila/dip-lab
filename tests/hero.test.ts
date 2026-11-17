@@ -128,7 +128,7 @@ describe('measured expectations (direction and tolerance bands, not exact values
     const area = await run('F05', 'brick', { factor: 6, interp: 'area' });
     const orig = lumaOf(loadImage('brick').data);
     const err = (o: typeof near) => { const l = lumaOf(o.pixels.data); let s = 0; for (let i = 0; i < l.length; i++) s += Math.abs(l[i] - orig[i]); return s / l.length; };
-    expect(near.intermediates!.length).toBe(2);
+    expect(near.intermediates!.length).toBe(3); // nearest, skip (img[::n, ::n]), area
     expect(err(area)).toBeLessThan(err(near));
   });
   it('histogram matching pulls the rocket’s mean toward the coffee photo', async () => {

@@ -121,6 +121,8 @@ export interface TechniqueSpec {
   livePreview?: boolean;
   /** One-sentence plain description shown at the top of the card. */
   blurb: string;
+  /** Verbatim course Colab cells that implement this concept (only where one exists). */
+  colab?: { notebook: string; cell: string; code: string; note?: string }[];
 
   // ---- v2 ----
   /** How the technique adapts the learner's image (always with a visible note). */

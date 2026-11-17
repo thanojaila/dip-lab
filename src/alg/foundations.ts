@@ -74,21 +74,51 @@ function shrinkAndBack(cv: Cv, input: Mat, factor: number, flag: number): Mat {
   }
 }
 
+/**
+ * Notebook cell `img[::n, ::n]`: keep every n-th pixel (no averaging), then enlarge with nearest-neighbour.
+ * Works for 1- and 3-channel 8-bit mats.
+ */
+function skipAndBack(cv: Cv, input: Mat, n: number): Mat {
+  const ch = input.channels();
+  const w = Math.ceil(input.cols / n);
+  const h = Math.ceil(input.rows / n);
+  const small = new cv.Mat(h, w, input.type());
+  const back = new cv.Mat();
+  try {
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const s = ((y * n) * input.cols + x * n) * ch;
+        const d = (y * w + x) * ch;
+        for (let c = 0; c < ch; c++) small.data[d + c] = input.data[s + c];
+      }
+    }
+    cv.resize(small, back, new cv.Size(input.cols, input.rows), 0, 0, cv.INTER_NEAREST);
+    return back.clone();
+  } finally {
+    small.delete();
+    back.delete();
+  }
+}
+
 foundations.F05 = ({ cv, input, params }) => {
   const factor = Math.max(1, Math.round(num(params, 'factor')));
   const key = str(params, 'interp');
   const nearest = shrinkAndBack(cv, input, factor, cv.INTER_NEAREST);
   const area = shrinkAndBack(cv, input, factor, cv.INTER_AREA);
-  const mat = key === 'area' ? area : nearest;
+  const skip = skipAndBack(cv, input, factor);
+  const mat = key === 'area' ? area : key === 'skip' ? skip : nearest;
+  const interpName = key === 'area' ? 'INTER_AREA' : key === 'skip' ? 'img[::n, ::n] (keep every n-th pixel)' : 'INTER_NEAREST';
   const result = {
     mat: mat.clone(),
-    vars: { factor, w: Math.round(input.cols / factor), h: Math.round(input.rows / factor), interpName: key === 'area' ? 'INTER_AREA' : 'INTER_NEAREST', domain: domainOf(input) },
+    vars: { factor, w: key === 'skip' ? Math.ceil(input.cols / factor) : Math.round(input.cols / factor), h: key === 'skip' ? Math.ceil(input.rows / factor) : Math.round(input.rows / factor), interpName, domain: domainOf(input) },
     intermediates: [
       { label: 'Nearest-neighbour shrink', pixels: matToPixels(cv, nearest) },
+      { label: 'Skip pixels, img[::n, ::n]', pixels: matToPixels(cv, skip) },
       { label: 'Area-average shrink', pixels: matToPixels(cv, area) },
     ],
   };
   nearest.delete();
   area.delete();
+  skip.delete();
   return result;
 };

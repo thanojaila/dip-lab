@@ -216,3 +216,7 @@ dialog::backdrop { background: rgba(21, 19, 31, 0.6); }
 
 .shelf-row::-webkit-scrollbar { height: 6px; }
 .shelf-row::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 3px; }
+
+/* Colab code panel */
+.colab-cell { margin: 8px 0 12px; }
+.colab-code { background: var(--surface-2, rgba(127, 127, 127, 0.12)); border-radius: 8px; padding: 10px 12px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; line-height: 1.45; margin: 4px 0; white-space: pre; }

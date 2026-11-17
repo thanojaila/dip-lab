@@ -17,6 +17,8 @@ import { EFFECT_NOTES } from '../notes/effects';
 import { MISCONCEPTIONS } from '../notes/misconceptions';
 import { SELF_CHECKS } from '../notes/selfchecks';
 import { QUESTIONS } from '../notes/questions';
+import { COLAB } from '../notes/colab';
+import { COLAB_EXTRA } from '../notes/colabExtra';
 import type { Runner } from '../alg/common';
 import { psnrMetric } from './metricsLib';
 
@@ -46,7 +48,7 @@ const DEFS: Def[] = [
   { id: 'F03', title: 'Interpolation', segment: 'pixels', tier: 'mvp', requiredCvApis: ['resize'], blurb: 'Change the number of samples and see how each interpolator fills the gaps.', heroImage: 'microaneurysms', alsoGoodOn: ['tp-checker'], scope: 'histogram',
     params: [range('scale', 'Scale', 0.1, 8, 0.05, 0.5), select('interp', 'Interpolation', [['nearest', 'Nearest'], ['linear', 'Linear'], ['cubic', 'Cubic'], ['area', 'Area']], 'nearest')], heroParams: { scale: 6, interp: 'nearest' } },
   { id: 'F05', title: 'Aliasing', segment: 'pixels', tier: 'mvp', requiredCvApis: ['resize'], blurb: 'Shrink without averaging and watch false patterns appear.', heroImage: 'brick', alsoGoodOn: ['tp-checker', 'building'], explainer: 'steps', scope: 'histogram',
-    params: [range('factor', 'Shrink factor', 2, 12, 1, 6), select('interp', 'Shrink with', [['nearest', 'Nearest (skip pixels)'], ['area', 'Area (average first)']], 'nearest')], heroParams: { factor: 6, interp: 'nearest' } },
+    params: [range('factor', 'Shrink factor', 2, 12, 1, 6), select('interp', 'Shrink with', [['nearest', 'Nearest (skip pixels)'], ['skip', 'Skip pixels (img[::n, ::n])'], ['area', 'Area (average first)']], 'nearest')], heroParams: { factor: 6, interp: 'nearest' } },
   { id: 'F04', title: 'Quantization', segment: 'pixels', tier: 'mvp', requiredCvApis: ['LUT'], blurb: 'Keep only L gray levels and watch smooth gradients turn into bands.', heroImage: 'cameraman', alsoGoodOn: ['tp-ramp', 'cat'], scope: 'curve', explainer: 'curve',
     params: [range('levels', 'Gray levels L', 2, 256, 1, 8)], heroParams: { levels: 4 } },
 
@@ -178,6 +180,7 @@ export const TECHNIQUES: TechniqueSpec[] = ORDER.map((id) => {
     effectNotes: explainer ? EXPLAINER_NOTES[id] : (EFFECT_NOTES[id] ?? []),
     misconception: explainer ? EXPLAINER_WATCH[id] : MISCONCEPTIONS[id],
     selfCheck: SELF_CHECKS[id],
+    colab: (COLAB[id] ?? COLAB_EXTRA[id])?.length ? [...(COLAB[id] ?? []), ...(COLAB_EXTRA[id] ?? [])] : undefined,
     sampleHint: d.heroImage,
   } as TechniqueSpec;
 });
