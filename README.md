@@ -1,74 +1,76 @@
-# DIP Lab v2
+# DIP Lab
 
-A playful, image-first, **local-only** lab for classical digital image processing. Every concept opens on a real photograph chosen because it *shows the problem*; you predict, press **Show me**, drag a before/after divider, hover the image to read the actual pixel numbers, and read an **Exact transform** statement filled with your own parameters. Everything also works on **your own uploaded image**.
+**Live: https://thanojaila.github.io/dip-lab/**
 
-> **Unofficial.** A student-made study aid. It is **not** a graded course project or Canvas submission, and **not** official University of Houston software. It makes no claim of instructor endorsement or course credit.
+DIP Lab is a free, in-browser playground for learning **classical digital image processing**. Instead of reading about a filter, you open a real photograph, press a button, and watch what the algorithm does to the pixels. It covers 44 techniques from "what is a pixel?" to Canny edges, morphology, the Fourier transform and Hough circles.
 
-## What is in it
+Everything runs in your browser tab. There is no server, no account, and your images never leave your computer.
 
-- **10 worlds, 44 runnable concepts, 3 explainer-only cards** (47 stamps in all):
+> **Unofficial.** A student-made study aid. It is not a graded course project and not official University of Houston software, and it makes no claim of instructor endorsement or course credit.
 
-| World | Concepts |
+## What it does
+
+Pick a concept (for example *Median filter*) and the lab opens on a photograph chosen because it **shows the problem** that technique solves: a photo full of salt-and-pepper noise for the median filter, a skewed sudoku page for perspective correction, a washed-out retina for histogram equalisation.
+
+From there you can:
+
+- **Predict, then reveal.** Commit to a guess about what will happen, then press **Show me**.
+- **Compare before and after** by dragging a divider across the image, or switch to side-by-side, a difference map (×1, ×4, ×8), or an overlay of detected points, lines, circles and contours.
+- **Read the real pixel numbers.** Hover over the image to see the 9×9 grid of actual values, original next to result.
+- **See the exact maths with your own numbers.** An *Exact transform* line states the formula the lab just ran, filled in with your parameters, for example `bin = ⌊r·8/256⌋, out = round(bin·255/(8−1))`.
+- **Use your own image.** Drop in any photo, get a short check-up of its statistics with suggested techniques, and press **Try this on my image** on any card.
+- **Chain steps.** Add noise, then smooth it, then sharpen it, with undo, and promote any result to be the next input.
+- **Take on challenges.** For example: beat 28 dB PSNR on a noisy photo, count exactly 24 coins, or find all 12 candies. They are checked automatically.
+- **Copy the Python.** Every concept has a Colab-ready code cell (OpenCV, NumPy, Matplotlib) that reproduces what the lab did, so you can take it into a notebook. Where a cell comes from the course class activities, it is marked; the rest are written for this lab and say so.
+
+Alongside the image there are small instruments that explain what is happening: histogram with cumulative curve, transfer curve with the inspected pixel marked, a draggable frequency-spectrum cutoff, heat maps for template matching and the Hough accumulator, and a numbers table (PSNR, object counts). Kernel and structuring-element explainers animate the "neighbourhood × weights = output" idea.
+
+## The ten worlds
+
+| World | What you explore |
 |---|---|
-| 0 Pixels | F01 load/inspect · F02 colour→gray · C01 channels and HSV · F03 interpolation · F05 aliasing · F04 quantization |
-| 1 Point operations | P01 negative · P02 brightness (clip vs wrap) · P03 contrast stretch · P04 log · P05 gamma · P06 threshold/Otsu |
-| 2 Histograms | H01 histogram+CDF · H02 equalisation · H03 CLAHE · H04 histogram matching |
-| 3 Noise and smoothing | N01 Gaussian noise · N02 salt-and-pepper · S01 box · S02 Gaussian · S03 median (with PSNR and a challenge) |
-| 4 Keep the edges, sharpen | S04 bilateral · S05 unsharp · S06 Laplacian |
-| 5 Edges | S08 Sobel (Gx/Gy/magnitude) · S07 Prewitt/Roberts · E01 Canny (four-step strip) |
-| 6 Thresholds and morphology | T01 adaptive threshold · M01 erode/dilate · M02 open/close/gradient · M03 threshold+count · M04 top-hat/black-hat |
-| 7 Frequency domain | Q01 DFT spectrum · Q02 low-pass · Q03 high-pass · Q04 ideal vs Gaussian (ringing) |
-| 8 Features and shapes | FT01 template matching · FT02 Harris · FT03 contours · FT04 Hough lines · FT05 Hough circles · SIFT, HOG, active contours (explainer-only) |
-| 9 Geometry (covered lightly) | G01 rotate/scale · G02 translate/shear · G03 perspective fix |
+| 0 Pixels | load and inspect, colour to gray, channels and HSV, interpolation, aliasing, quantization |
+| 1 Point operations | negative, brightness (clip vs wrap-around), contrast stretch, log, gamma, threshold and Otsu |
+| 2 Histograms | histogram and CDF, equalisation, CLAHE, histogram matching |
+| 3 Noise and smoothing | Gaussian and salt-and-pepper noise; box, Gaussian and median filters |
+| 4 Keep the edges, sharpen | bilateral filter, unsharp mask, Laplacian sharpening |
+| 5 Edges | Sobel, Prewitt and Roberts, Canny |
+| 6 Thresholds and morphology | adaptive threshold, erode and dilate, open, close and gradient, counting objects, top-hat and black-hat |
+| 7 Frequency domain | DFT spectrum, low-pass, high-pass, ideal vs Gaussian (ringing) |
+| 8 Features and shapes | template matching, Harris corners, contours, Hough lines and circles |
+| 9 Geometry | rotate and scale, translate and shear, perspective correction |
 
-- **24 bundled photographs** with licence and credit (`public/samples/manifest.json`), plus three generated test patterns.
-- **Stage:** before/after slider (keyboard operable), side by side, diff (×1/×4/×8), overlay (points, lines, circles, boxes, contours), **pixel inspector** (9×9 numbers, original and result), pipeline chips with undo, drag-and-drop upload.
-- **Scopes:** histogram (before/after, CDF), transfer curve with the inspected pixel marked, draggable spectrum cutoff, heat map (match scores, Hough accumulator), numbers table (PSNR, counts).
-- **Explainers:** kernel weights with "neighbourhood × weights = output", structuring element with fit/hit animation, step strips.
-- **Progress:** a stamp per concept for running its demo and committing to a prediction; auto-checked challenges (e.g. PSNR above 28 dB, count exactly 24 coins, find all 12 candies); a world map. Stored only in `localStorage`, with **Reset my progress**.
-- **Image check-up** after upload (local statistics → friendly, hedged suggestions that link to concepts), and **Try this on my image** on every card.
-- Config JSON export/import (parameters only; v1 files still import), result PNG export, instructor mode, capability probe, light/dark theme, Worker for heavy operations (DFT, Hough, large bilateral) with a cancel button.
+That is 44 runnable concepts. SIFT, HOG and active contours appear as explainer-only cards: the idea is described, clearly labelled "runs in Python", and never faked with a demo.
 
-**Deliberately not in the browser:** SIFT, HOG and active contours. They have explainer-only cards (the idea in original words, labelled "runs in Python") and never a fake demo. `cv.SIFT` is probed and reported unavailable; `cv.idft` is not exported by the vendored build, so inverse transforms use `cv.dft` with `DFT_INVERSE`.
+You earn a stamp on each concept by running its demo and making a prediction. Progress is a simple world map.
 
 ## Privacy
 
-- Images are processed **only in your browser tab** (OpenCV.js compiled to WebAssembly). Nothing is uploaded.
-- No accounts, analytics, trackers, remote fonts, CDNs or fingerprinting. The app makes no network requests other than loading its own static files.
-- Exported config JSON contains a concept id + parameters (+ optionally a bundled image id). **Never pixels.**
-- Only stamps and challenge results are stored (`localStorage`, one key, guarded by try/catch; the page works without it).
-- The production build ships a strict CSP (same-origin only). It must allow `'unsafe-eval'` because the vendored OpenCV.js uses `new Function`; DIP Lab's own code does not use `eval`.
+- Images are processed only in your browser (OpenCV.js compiled to WebAssembly). Nothing is uploaded.
+- No accounts, analytics, trackers, CDNs or remote fonts. The page only loads its own static files.
+- Exported settings files contain a concept id and parameters, never pixels.
+- Only your stamps and challenge results are remembered, in your browser's `localStorage`. **Reset my progress** clears them.
 
-## Run it
+## Built with
+
+TypeScript and Vite, with [OpenCV.js](https://opencv.org) 4.10 doing the image processing in WebAssembly. Heavy operations (DFT, Hough, large bilateral filters) run in a Web Worker with a cancel button. The test suite runs every demo on its real image against the real OpenCV.js build.
+
+## Run it yourself
 
 ```bash
 npm ci
-npm run dev        # http://localhost:5173 (heavy ops run on the main thread in dev)
-npm test           # 270+ tests, including every demo on its real image against the real OpenCV.js
-npm run build      # thumbnails + type-check + static build in dist/
-npm run preview    # serve dist/ locally (CSP and Workers active)
+npm run dev       # http://localhost:5173
+npm test
+npm run build     # static site in dist/
 ```
 
-`dist/` is a fully static site: GitHub Pages, Cloudflare Pages, or any static server. First load downloads ~10 MB of OpenCV.js (cached afterwards). Chrome, Firefox and Edge work; Safari is best-effort.
+`dist/` is a plain static site that works on GitHub Pages or any static host. The first load downloads about 10 MB of OpenCV.js, which the browser caches. Chrome, Firefox and Edge work; Safari is best-effort.
 
-## For instructors
+## More documentation
 
-[`docs/INSTRUCTOR.md`](docs/INSTRUCTOR.md): eight scenarios (10-minute demo, noise clinic, edge preservation, Canny thresholds, morphology story, **Otsu vs adaptive on the sudoku page**, **why ideal filters ring**, homework warm-up) plus per-world goals, demos and discussion prompts. Turn on **Instructor** in the top bar to see them inside the page. No LMS integration or grade sync.
+- [`docs/INSTRUCTOR.md`](docs/INSTRUCTOR.md): teaching scenarios and discussion prompts. Turn on **Instructor** in the top bar to see them inside the page.
+- [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md): how to add an image or a concept.
 
-## For maintainers
+## Licences and credits
 
-[`docs/MAINTENANCE.md`](docs/MAINTENANCE.md): pin OpenCV, add an image, add a concept, release checklist, changelog.
-
-## Licenses
-
-App code: MIT. OpenCV.js: Apache-2.0. Fonts (Baloo 2, Nunito, JetBrains Mono): SIL OFL 1.1 via Fontsource. Images: see the attribution page and `public/samples/ATTRIBUTION.md`. No course PDFs, notebooks or images are included. See `THIRD_PARTY_NOTICES.md`.
-
-## Deploy to GitHub Pages
-
-The build is fully static and uses relative paths (`base: './'`), so it works from any sub-path such as `https://<user>.github.io/<repo>/`. OpenCV.js, fonts and the sample photos are all bundled; nothing is fetched from the internet.
-
-1. Push this folder to a GitHub repo whose default branch is `main`.
-2. In the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Push to `main` (or run the workflow manually). `.github/workflows/pages.yml` runs the tests, builds, and publishes `dist/`.
-
-To host elsewhere or test locally: `npm run build`, then serve the `dist/` folder with any static server.
+App code: MIT. OpenCV.js: Apache-2.0. Fonts (Baloo 2, Nunito, JetBrains Mono): SIL OFL 1.1. The 24 bundled photographs are openly licensed; credits are on the app's attribution page and in `public/samples/ATTRIBUTION.md`. No course PDFs or course images are included; a few Colab code cells are adapted from class-activity notebooks. See `THIRD_PARTY_NOTICES.md`.
