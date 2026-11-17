@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { TECHNIQUES } from '../src/registry/techniques';
-import { COLAB } from '../src/notes/colab';
-import { COLAB_EXTRA } from '../src/notes/colabExtra';
+import { COLAB_EXTRA, COLAB_FOUNDATIONS } from '../src/notes/colabExtra';
 
 describe('Colab code cells', () => {
   it('every key is a real concept and every cell has code', () => {
     const ids = new Set(TECHNIQUES.map((t) => t.id));
-    for (const [id, cells] of [...Object.entries(COLAB), ...Object.entries(COLAB_EXTRA)]) {
+    for (const [id, cells] of [...Object.entries(COLAB_FOUNDATIONS), ...Object.entries(COLAB_EXTRA)]) {
       expect(ids.has(id), id).toBe(true);
       for (const c of cells) {
         expect(c.code.trim().length, id).toBeGreaterThan(10);

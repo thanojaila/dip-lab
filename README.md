@@ -21,7 +21,7 @@ From there you can:
 - **Use your own image.** Drop in any photo, get a short check-up of its statistics with suggested techniques, and press **Try this on my image** on any card.
 - **Chain steps.** Add noise, then smooth it, then sharpen it, with undo, and promote any result to be the next input.
 - **Take on challenges.** For example: beat 28 dB PSNR on a noisy photo, count exactly 24 coins, or find all 12 candies. They are checked automatically.
-- **Copy the Python.** Every concept has a Colab-ready code cell (OpenCV, NumPy, Matplotlib) that reproduces what the lab did, so you can take it into a notebook. Where a cell comes from the course class activities, it is marked; the rest are written for this lab and say so.
+- **Copy the Python.** Every concept has a Colab-ready code cell (OpenCV, NumPy, Matplotlib) that reproduces what the lab did, so you can take it into a notebook. All cells are written for this lab.
 
 Alongside the image there are small instruments that explain what is happening: histogram with cumulative curve, transfer curve with the inspected pixel marked, a draggable frequency-spectrum cutoff, heat maps for template matching and the Hough accumulator, and a numbers table (PSNR, object counts). Kernel and structuring-element explainers animate the "neighbourhood × weights = output" idea.
 
@@ -73,4 +73,4 @@ npm run build     # static site in dist/
 
 ## Licences and credits
 
-App code: MIT. OpenCV.js: Apache-2.0. Fonts (Baloo 2, Nunito, JetBrains Mono): SIL OFL 1.1. The 24 bundled photographs are openly licensed; credits are on the app's attribution page and in `public/samples/ATTRIBUTION.md`. No course PDFs or course images are included; a few Colab code cells are adapted from class-activity notebooks. See `THIRD_PARTY_NOTICES.md`.
+App code: MIT. OpenCV.js: Apache-2.0. Fonts (Baloo 2, Nunito, JetBrains Mono): SIL OFL 1.1. The 24 bundled photographs are openly licensed; credits are on the app's attribution page and in `public/samples/ATTRIBUTION.md`. No course slides, notebooks, code or images are included. See `THIRD_PARTY_NOTICES.md`.

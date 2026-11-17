@@ -17,8 +17,7 @@ import { EFFECT_NOTES } from '../notes/effects';
 import { MISCONCEPTIONS } from '../notes/misconceptions';
 import { SELF_CHECKS } from '../notes/selfchecks';
 import { QUESTIONS } from '../notes/questions';
-import { COLAB } from '../notes/colab';
-import { COLAB_EXTRA } from '../notes/colabExtra';
+import { COLAB_EXTRA, COLAB_FOUNDATIONS } from '../notes/colabExtra';
 import type { Runner } from '../alg/common';
 import { psnrMetric } from './metricsLib';
 
@@ -180,7 +179,7 @@ export const TECHNIQUES: TechniqueSpec[] = ORDER.map((id) => {
     effectNotes: explainer ? EXPLAINER_NOTES[id] : (EFFECT_NOTES[id] ?? []),
     misconception: explainer ? EXPLAINER_WATCH[id] : MISCONCEPTIONS[id],
     selfCheck: SELF_CHECKS[id],
-    colab: (COLAB[id] ?? COLAB_EXTRA[id])?.length ? [...(COLAB[id] ?? []), ...(COLAB_EXTRA[id] ?? [])] : undefined,
+    colab: (COLAB_FOUNDATIONS[id] ?? COLAB_EXTRA[id]),
     sampleHint: d.heroImage,
   } as TechniqueSpec;
 });

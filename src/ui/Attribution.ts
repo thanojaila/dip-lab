@@ -27,7 +27,7 @@ export function Attribution(onReset: () => void): HTMLElement {
         h('thead', {}, h('tr', {}, ...['Image', 'Credit', 'Licence', 'Origin'].map((t) => h('th', { scope: 'col' }, t)))),
         h('tbody', {}, ...IMAGES.map((i) => h('tr', {}, h('td', {}, i.id), h('td', {}, i.credit), h('td', {}, i.licence), h('td', {}, i.origin)))))),
     h('h3', {}, 'Course and text'),
-    h('p', {}, 'Topic coverage follows a university introductory digital image processing course, used only as inspiration. No course slides, notebooks or images are included, and all explanations are original wording. Recommended textbook for the theory: Rafael C. Gonzalez and Richard E. Woods, Digital Image Processing, 4th edition (not reproduced here).'),
+    h('p', {}, 'Topic coverage follows a university introductory digital image processing course, used only as inspiration. No course slides, notebooks, code or images are included; all explanations and all Python code cells are original. Recommended textbook for the theory: Rafael C. Gonzalez and Richard E. Woods, Digital Image Processing, 4th edition (not reproduced here).'),
     h('p', { class: 'hint' }, 'Unofficial, student-made learning aid. Not a graded submission, not official University of Houston software, and no claim of instructor endorsement.'),
   );
 }

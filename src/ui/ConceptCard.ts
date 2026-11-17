@@ -125,7 +125,7 @@ export class ConceptCard {
 
   private hiddenParams = new Map<string, ParamValue>();
 
-  /** "Colab code" panel: the course notebook cell(s) behind this concept, verbatim, with copy buttons. */
+  /** "Colab code" panel: the Python cell(s) behind this concept, with copy buttons. */
   private colabSection(): HTMLElement | null {
     const snippets = this.spec.colab;
     if (!snippets?.length) return null;

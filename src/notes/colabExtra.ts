@@ -1,11 +1,20 @@
-import type { ColabSnippet } from './colab';
+export interface ColabSnippet {
+  /** Origin label shown on the card. */
+  notebook: string;
+  /** What the cell does. */
+  cell: string;
+  /** Python, ready to paste into Colab. */
+  code: string;
+  /** How the browser lab relates to this cell (differences are stated, never hidden). */
+  note?: string;
+}
 
 /**
- * Colab-ready Python for the concepts that have no cell in the course notebooks.
- * Written for this lab (NOT copied from a notebook): each cell reproduces what the lab runs,
- * with the lab's default parameters, so it can be pasted into Colab next to `img`.
+ * Colab-ready Python for every concept. All cells are written for this lab (none are copied from
+ * course material): each reproduces what the lab runs, with the lab's default parameters, and is
+ * self-contained, so it can be pasted into a fresh Colab notebook.
  */
-const GEN = 'Written for DIP Lab (not from your notebooks)';
+const GEN = 'Written for DIP Lab';
 
 const SETUP = `import cv2
 import numpy as np
@@ -285,4 +294,162 @@ size = 450
 dst = np.float32([[0, 0], [size, 0], [size, size], [0, size]])
 M = cv2.getPerspectiveTransform(src, dst)
 out = cv2.warpPerspective(img, M, (size, size))`, 'The corner numbers are the lab’s sudoku sample; read yours off the stage.')],
+};
+
+export const COLAB_FOUNDATIONS: Record<string, ColabSnippet[]> = {
+  F01: [{
+    notebook: GEN,
+    cell: 'Load and inspect an image',
+    code: `import cv2
+
+img = cv2.imread("lena.jpg", cv2.IMREAD_GRAYSCALE)
+if img is None:
+    raise FileNotFoundError("Put lena.jpg next to this notebook (any image works).")
+
+h, w = img.shape
+print("Size (width x height):", w, "x", h)
+print("Number of pixels:", img.size)
+print("Data type:", img.dtype)
+print("Intensity range:", int(img.min()), "to", int(img.max()))`,
+    note: 'The lab shows size and pixel count in the Exact panel; the intensity range is in the histogram scope.',
+  }],
+  F02: [{
+    notebook: GEN,
+    cell: 'Colour to gray',
+    code: `import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+color = cv2.imread("lena.jpg")                       # BGR
+b, g, r = [color[:, :, i].astype(np.float32) for i in range(3)]
+gray = np.round(0.299 * r + 0.587 * g + 0.114 * b).astype(np.uint8)   # BT.601 luma weights
+same = cv2.cvtColor(color, cv2.COLOR_BGR2GRAY)        # OpenCV does the same thing
+print("Max difference from cv2:", int(np.abs(gray.astype(int) - same).max()))
+
+plt.imshow(gray, cmap="gray", vmin=0, vmax=255); plt.axis("off"); plt.title("Gray"); plt.show()`,
+    note: 'Same weights as cv.COLOR_RGBA2GRAY in the lab.',
+  }],
+  F03: [{
+    notebook: GEN,
+    cell: 'Interpolation on a tiny 2×2 image',
+    code: `import cv2
+import numpy as np
+
+tiny = np.array([[100, 140],
+                 [120, 160]], dtype=np.uint8)
+
+for name, flag in [("nearest", cv2.INTER_NEAREST), ("bilinear", cv2.INTER_LINEAR), ("bicubic", cv2.INTER_CUBIC)]:
+    print(name)
+    print(cv2.resize(tiny, (6, 6), interpolation=flag), "\\n")
+
+# Shrinking: INTER_AREA averages the source pixels each output pixel covers
+block = np.array([[100, 120], [140, 160]], dtype=np.uint8)
+print("INTER_AREA 2x2 -> 1x1:", cv2.resize(block, (1, 1), interpolation=cv2.INTER_AREA)[0, 0])`,
+    note: 'Use the pixel inspector on the Result to read the same kind of numbers on a real photo.',
+  }, {
+    notebook: GEN,
+    cell: 'Shrink, then enlarge three ways',
+    code: `import cv2
+
+img = cv2.imread("lena.jpg", cv2.IMREAD_GRAYSCALE)
+h, w = img.shape
+small = cv2.resize(img, (64, 64), interpolation=cv2.INTER_AREA)
+
+enlarged = {
+    "nearest": cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST),
+    "bilinear": cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR),
+    "bicubic": cv2.resize(small, (w, h), interpolation=cv2.INTER_CUBIC),
+}`,
+    note: 'In the lab: shrink first (Scale below 1), promote the Result to input, then enlarge with the interpolator to compare.',
+  }],
+  F04: [{
+    notebook: GEN,
+    cell: 'Quantize to L gray levels',
+    code: `import cv2
+import numpy as np
+
+img = cv2.imread("lena.jpg", cv2.IMREAD_GRAYSCALE)
+L = 16
+
+bins = (img.astype(np.int32) * L) // 256                       # which of the L bins each pixel falls in
+quantized = np.round(bins * 255 / (L - 1)).astype(np.uint8)    # spread the bins back over 0-255
+
+print("Requested levels:", L)
+print("Distinct values used:", len(np.unique(quantized)))
+print(np.unique(quantized))`,
+    note: 'Same maths as the lab: bin = floor(r·L/256), out = round(bin·255/(L−1)), applied as a 256-entry lookup table.',
+  }],
+  F05: [{
+    notebook: GEN,
+    cell: 'Undersample by skipping pixels',
+    code: `import cv2
+
+img = cv2.imread("lena.jpg", cv2.IMREAD_GRAYSCALE)
+n = 8                                          # keep every n-th pixel
+
+skipped = img[::n, ::n]                        # no averaging first, so fine detail aliases
+view = cv2.resize(skipped, (img.shape[1], img.shape[0]), interpolation=cv2.INTER_NEAREST)`,
+    note: 'Choose "Skip pixels (img[::n, ::n])" under Shrink with to run exactly this.',
+  }, {
+    notebook: GEN,
+    cell: 'Downsample with INTER_AREA (average first)',
+    code: `import cv2
+
+img = cv2.imread("lena.jpg", cv2.IMREAD_GRAYSCALE)
+size = 64
+
+small = cv2.resize(img, (size, size), interpolation=cv2.INTER_AREA)     # averages before dropping samples
+view = cv2.resize(small, (img.shape[1], img.shape[0]), interpolation=cv2.INTER_NEAREST)`,
+    note: 'Choose "Area (average first)". This sets an output size (64×64); the lab sets a shrink factor.',
+  }],
+  H01: [{
+    notebook: GEN,
+    cell: 'Histogram and CDF',
+    code: `import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+img = cv2.imread("lena.jpg", cv2.IMREAD_GRAYSCALE)
+hist = np.bincount(img.ravel(), minlength=256)
+cdf = np.cumsum(hist) / hist.sum()
+
+fig, ax = plt.subplots(figsize=(7, 3))
+ax.bar(range(256), hist, width=1.0)
+ax.set_xlabel("Pixel intensity"); ax.set_ylabel("Count")
+ax2 = ax.twinx(); ax2.plot(cdf, color="k"); ax2.set_ylabel("CDF")
+plt.show()
+print("min", img.min(), "max", img.max(), "mean", round(img.mean(), 1), "std", round(img.std(), 1))`,
+    note: '256 bins over 0–255, like the lab scope, with the CDF on a second axis.',
+  }],
+  H03: [{
+    notebook: GEN,
+    cell: 'CLAHE at three clip limits',
+    code: `import cv2
+import matplotlib.pyplot as plt
+
+img = cv2.imread("lena.jpg", cv2.IMREAD_GRAYSCALE)
+
+plt.figure(figsize=(12, 4))
+for i, clip in enumerate([1, 3, 10]):
+    clahe = cv2.createCLAHE(clipLimit=clip, tileGridSize=(8, 8))
+    plt.subplot(1, 3, i + 1)
+    plt.imshow(clahe.apply(img), cmap="gray", vmin=0, vmax=255)
+    plt.title(f"clipLimit = {clip}"); plt.axis("off")
+plt.tight_layout(); plt.show()`,
+    note: 'OpenCV clipLimit is a multiple of the average bin height (1–40). scikit-image equalize_adapthist uses a different 0–1 scale, so values do not match number for number.',
+  }],
+  G01: [{
+    notebook: GEN,
+    cell: 'Resize and rotate',
+    code: `import cv2
+
+img = cv2.imread("lena.jpg")
+h, w = img.shape[:2]
+
+half = cv2.resize(img, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+
+M = cv2.getRotationMatrix2D((w / 2, h / 2), 15, 1.0)          # angle 15 degrees, scale 1
+rotated = cv2.warpAffine(img, M, (w, h))                       # canvas stays the same size: corners are lost`,
+    note: 'The lab keeps the canvas fixed, so corners are lost; that is the point of the card. To grow the canvas instead, compute the rotated bounding box.',
+  }],
 };
